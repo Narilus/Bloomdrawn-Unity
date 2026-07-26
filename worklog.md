@@ -578,3 +578,68 @@ None. No presentation binding or production art asset was added.
 ### Integration notes
 
 All fixture data travels through the normal importer/validator/registry path. Stable runtime IDs encode lineup/encounter IDs plus authored ordering and never use Unity identities or object names.
+
+## 2026-07-26 - Task M1B: Combat State Machine
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` sections 6.2 through 6.11 and 15.1 through 15.5; DD-01 and DD-27
+**Plan/task file:** `plans/tasks/M1B-combat-state-machine.md`
+**Commit:** pending
+
+### Outcome
+
+Added the pure deterministic M1 combat phase machine with its complete phase vocabulary, explicit legal-transition table, legal public command boundaries, ordered phase events, unchanged-state rejection, and terminal command rejection. The machine consumes only the validated M1A `CombatSetupResult`; it reaches `ENEMY_PHASE_START` after End Turn and leaves slots, action resolution, intent regeneration, and sequential presentation to M1F.
+
+### Files and assets changed
+
+- `Bloomdrawn.Engine` Assembly Definition now has the approved one-way reference to pure `Bloomdrawn.Content`.
+- Pure Engine `CombatState`, `CombatPhase`, command, phase-rule, and state-machine contracts.
+- Edit Mode state-machine tests plus an assembly-boundary assertion that Content does not reference Engine.
+
+### Tests added or updated
+
+- `CombatStateMachineTests` cover the full transition table, opening and End Turn advancement, unchanged-state illegal-command rejection, terminal rejection, and deterministic phase/event traces.
+- `AssemblyBoundarySmokeTests` now proves the approved Engine-to-Content reference and forbids a reverse Content-to-Engine reference.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| CLI/Pipeline discovery | pass | Ran `unity --help` and `unity command --help` before CLI validation. |
+| Project validation | pass | `Tools\\validate.ps1` completed successfully. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\M1B-EditMode-results.xml`: 30 passed, including 7 M1B state-machine cases. |
+| CLI/Pipeline project health | pass | `bloom.health` reported Unity `6000.5.5f1`, `IsCompiling: false`, valid fixture registry, and 19 definitions. |
+| Scene/layout/interaction validation | not required | M1B is pure Engine behavior. |
+| Build validation | not required | No Player-facing code or asset change. |
+| Task-specific checks | pass | Transition rules, ordered events, terminal rejection, deterministic traces, no Unity reference, and one-way pure assembly direction are covered. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- Per explicit project-owner approval, Engine may reference the pure, Unity-object-free Content assembly for validated runtime DTOs/setup data. Content retains no reverse Engine reference.
+- M1B models phase boundaries only. It intentionally does not resolve cards, damage, enemy slots/actions, intent lifecycle, presentation, persistence, or preview behavior.
+
+### Unity/project/package impact
+
+Added only the approved Engine-to-Content Assembly Definition reference. `noEngineReferences` remains enabled and no Unity, package, scene, or Player configuration changed.
+
+### Save, schema, migration, and content-version impact
+
+None. M1B consumes existing M1A fixture setup without changing content schema or persistence.
+
+### Asset/provenance impact
+
+None.
+
+### Known follow-up
+
+- M1C adds runtime card instances/piles; M1F owns enemy slots, sequential action resolution, intent regeneration, and presentation-ready action metadata.
+
+### Integration notes
+
+The only legal M1B public commands are `BeginCombat` during `CombatSetup` and `EndTurn` during `PlayerAction`. Internal transitions emit semantic `combat.phase-entered` events with monotonically increasing sequence values; terminal transitions are modeled for M1E to invoke under DD-01 Atomic Stop.

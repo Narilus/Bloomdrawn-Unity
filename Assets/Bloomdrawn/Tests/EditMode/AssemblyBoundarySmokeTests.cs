@@ -18,6 +18,11 @@ namespace Bloomdrawn.Tests.EditMode
             AssertPureAssembly(typeof(EngineAssemblyMarker).Assembly);
             AssertPureAssembly(typeof(ContentAssemblyMarker).Assembly);
             AssertPureAssembly(typeof(ApplicationAssemblyMarker).Assembly);
+
+            var engineReferences = typeof(EngineAssemblyMarker).Assembly.GetReferencedAssemblies().Select(reference => reference.Name).ToList();
+            var contentReferences = typeof(ContentAssemblyMarker).Assembly.GetReferencedAssemblies().Select(reference => reference.Name).ToList();
+            Assert.That(engineReferences, Does.Contain("Bloomdrawn.Content"));
+            Assert.That(contentReferences, Does.Not.Contain("Bloomdrawn.Engine"));
         }
 
         private static void AssertPureAssembly(System.Reflection.Assembly assembly)

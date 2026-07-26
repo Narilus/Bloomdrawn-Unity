@@ -1,7 +1,9 @@
 {
   "name": "Bloomdrawn.Engine",
   "rootNamespace": "Bloomdrawn.Engine",
-  "references": [],
+  "references": [
+    "Bloomdrawn.Content"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
