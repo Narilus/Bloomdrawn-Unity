@@ -184,7 +184,10 @@ namespace Bloomdrawn.Engine.Combat
             if (state.Phase != CombatPhase.EnemyEnd) throw new InvalidOperationException("Only EnemyEnd may internally advance to the next ordinary player turn.");
             var events = priorEvents == null ? new List<GameEvent>() : priorEvents.ToList();
             var roundEnd = Advance(state, CombatPhase.RoundEnd, events);
-            var playerStart = Advance(roundEnd, CombatPhase.PlayerTurnStart, events, mana: ManaState.Full());
+            var clearedPartyShield = new PartyCombatValues(roundEnd.Values.Party.MaximumHp, roundEnd.Values.Party.CurrentHp, 0);
+            var playerStartValues = new CombatValues(clearedPartyShield, roundEnd.Values.Enemies);
+            var shieldCleared = WithCardPlayState(roundEnd, roundEnd.Deck, roundEnd.Mana, roundEnd.NextEventSequence, playerStartValues);
+            var playerStart = Advance(shieldCleared, CombatPhase.PlayerTurnStart, events, mana: ManaState.Full());
             CombatDecks.TryDrawToTarget(playerStart.Deck, playerStart.Rng, out var drawnDeck);
             var playerAction = Advance(playerStart, CombatPhase.PlayerAction, events, drawnDeck, ManaState.Full());
             return CommandResult<CombatState>.Accepted(playerAction, events);

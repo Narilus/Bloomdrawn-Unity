@@ -930,7 +930,7 @@ Added the permanent M1 application-owned `CombatSession` path. Accepted engine e
 **Status:** complete
 **Integrator:** Narilus
 **Design references:** `docs/DESIGN.md` §§5–8, 15.1, 15.9, 16, and 17.2; DD-01, DD-27, DD-28; `plans/tasks/M1J-golden-replay-playmode-gate.md`
-**Commit:** pending
+**Commits:** `d12fcde` (replay/lifecycle gate) and the focused runtime-scene follow-up in this change.
 
 ### Outcome
 
@@ -957,3 +957,9 @@ Restored the specified ordinary combat lifecycle: accepted cards finish from Res
 ### Cross-plan audit
 
 - M1A/M1F intent ownership remains disjoint; M1C owns piles; M1G supplies independent actors; M1I remains presentation-only. The missing turn lifecycle was repaired from the existing DESIGN contract rather than by selecting a new rule.
+
+### Completion follow-up
+
+- The real `CombatStage` is now an enabled Player scene. A Play Mode test loads it, binds a deterministic fixture-shaped `CombatSession`, drives accepted complete commands through Victory, drains the presentation queue, verifies stable enemy actor routing, and confirms input unlocks after completion. The separate golden replay continues to prove the registry-derived fixture path.
+- The next ordinary player turn now clears ordinary party Shield before drawing/refilling, matching `DESIGN.md` §7.3; the enemy-sequence test proves that expiry on the actual `EnemyEnd -> RoundEnd -> PlayerTurnStart` transition.
+- Final validation passed: `Tools\\validate.ps1`; full Edit Mode (56/56) and Play Mode (4/4) suites; and `Tools\\build-smoke.ps1` producing `Builds\\Smoke\\Bloomdrawn.exe`.

@@ -22,15 +22,18 @@ namespace Bloomdrawn.Tests.EditMode
         public void EnemyActionsResolveOneAtATimeInStableSlotOrderThenRegenerate()
         {
             var state = BeginEnemyPhase(TwoEnemySetup());
+            var shieldedValues = new CombatValues(new PartyCombatValues(state.Values.Party.MaximumHp, state.Values.Party.CurrentHp, 5), state.Values.Enemies);
+            state = CombatStateMachine.WithCardPlayState(state, state.Deck, state.Mana, state.NextEventSequence, shieldedValues);
             var first = CombatStateMachine.Apply(state, new CombatCommand(CombatCommandKind.AdvanceEnemyAction));
             Assert.That(first.IsAccepted, Is.True); Assert.That(first.State.Phase, Is.EqualTo(CombatPhase.EnemyAction));
-            Assert.That(first.Events.First().Facts["slotIndex"], Is.EqualTo("0")); Assert.That(first.State.Values.Party.CurrentHp, Is.EqualTo(first.State.Values.Party.MaximumHp - 7));
+            Assert.That(first.Events.First().Facts["slotIndex"], Is.EqualTo("0")); Assert.That(first.State.Values.Party.CurrentHp, Is.EqualTo(first.State.Values.Party.MaximumHp - 2));
             var second = CombatStateMachine.Apply(first.State, new CombatCommand(CombatCommandKind.AdvanceEnemyAction));
             Assert.That(second.State.Phase, Is.EqualTo(CombatPhase.PlayerAction));
             Assert.That(second.Events.First().Facts["slotIndex"], Is.EqualTo("1"));
             Assert.That(second.Events.Select(item => item.Kind), Does.Contain("combat.enemy-intents-regenerated"));
             Assert.That(second.State.NextEnemySlotIndex, Is.EqualTo(0));
             Assert.That(second.State.RoundNumber, Is.EqualTo(2));
+            Assert.That(second.State.Values.Party.Shield, Is.EqualTo(0));
         }
 
         [Test]
