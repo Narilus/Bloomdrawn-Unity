@@ -32,8 +32,8 @@ namespace Bloomdrawn.Tests.EditMode
             Assert.That(result.State.Deck.Hand.Any(candidate => candidate.Id == card.Id), Is.False);
             Assert.That(result.State.Deck.Resolving.Single().Id, Is.EqualTo(card.Id));
             Assert.That(result.State.Mana.Current, Is.EqualTo(5));
-            Assert.That(result.Events.Single().Kind, Is.EqualTo("combat.card-played"));
-            Assert.That(result.Events.Single().Facts["finalCost"], Is.EqualTo("1"));
+            Assert.That(result.Events.First().Kind, Is.EqualTo("combat.card-played"));
+            Assert.That(result.Events.First().Facts["finalCost"], Is.EqualTo("1"));
         }
 
         [Test]
@@ -47,7 +47,7 @@ namespace Bloomdrawn.Tests.EditMode
 
             var accepted = CardPlayRules.Apply(state, new PlayCardCommand(card.Id, card.OwnerId, CardTargetChoice.OneEnemy(state.Setup.Enemies[0].RuntimeId)));
             Assert.That(accepted.IsAccepted, Is.True);
-            Assert.That(accepted.Events.Single().TargetId, Is.EqualTo(state.Setup.Enemies[0].RuntimeId.Value));
+            Assert.That(accepted.Events.First().TargetId, Is.EqualTo(state.Setup.Enemies[0].RuntimeId.Value));
         }
 
         [Test]

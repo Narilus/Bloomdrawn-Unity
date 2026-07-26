@@ -768,3 +768,33 @@ Added pure authoritative Mana state and complete `PlayCard` validation. Fixture-
 ### Known follow-up
 
 - M1E owns effect resolution, damage, Shield, healing, and terminal outcome ordering for accepted resolving cards.
+
+## 2026-07-26 - M1E: Damage, Shield, and Healing
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§6.10–6.11, 7.1–7.4, 15.4–15.6, and 17.2; DD-01 and DD-27; `plans/tasks/M1E-damage-shield-healing.md`
+**Commit:** pending
+
+### Outcome
+
+Added pure shared party and per-enemy HP/Shield state, owner-stat fixture effect resolution, and Atomic Stop. Accepted M1 Strike and Shield cards now emit an ordered card-play event followed by their semantic result event; all atomic effects record source kind, owner, stable affected ID, Shield absorbed, and HP damage dealt. Defeat wins a simultaneous terminal checkpoint.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| `Tools\\validate.ps1` | pass, including Edit and Play Mode suites |
+| `unity test . --mode EditMode --output Logs\\M1E-EditMode-results.xml` | pass |
+| automated `bloom.health` | pass: Pipeline/editor ready, compile idle and successful, registry valid (19 definitions) |
+
+### Contract evidence
+
+- Strike uses the owner Attack; Shield uses owner Defense.
+- Healing caps at maximum HP; HP-loss is distinct from damage and bypasses Shield.
+- Atomic Stop emits the terminal event and skips later ordinary effects; defeated party takes precedence when both terminal conditions are true at a checkpoint.
+- No statuses, Domains, reactions, production effects, or presentation rule was introduced.
+
+### Known follow-up
+
+- M1F owns enemy intent lifecycle and sequential enemy actions using these pure effect results.

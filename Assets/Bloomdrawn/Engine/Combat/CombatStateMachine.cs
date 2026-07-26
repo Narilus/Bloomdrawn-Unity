@@ -36,7 +36,7 @@ namespace Bloomdrawn.Engine.Combat
 
     public sealed class CombatState
     {
-        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null)
+        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null, CombatValues values = null)
         {
             Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             Phase = phase;
@@ -44,6 +44,7 @@ namespace Bloomdrawn.Engine.Combat
             NextEventSequence = nextEventSequence;
             Deck = deck ?? CombatDecks.Create(setup);
             Mana = mana ?? ManaState.Full();
+            Values = values ?? CombatValues.Create(setup);
         }
 
         public CombatSetupResult Setup { get; }
@@ -52,6 +53,7 @@ namespace Bloomdrawn.Engine.Combat
         public long NextEventSequence { get; }
         public CombatDeckState Deck { get; }
         public ManaState Mana { get; }
+        public CombatValues Values { get; }
         public bool IsTerminal => Phase == CombatPhase.Victory || Phase == CombatPhase.Defeat;
 
         public string CanonicalForm()
@@ -66,7 +68,8 @@ namespace Bloomdrawn.Engine.Combat
                 Mana.Current.ToString(CultureInfo.InvariantCulture),
                 string.Join(",", Deck.Draw.Select(card => card.Id)),
                 string.Join(",", Deck.Hand.Select(card => card.Id)),
-                string.Join(",", Deck.Resolving.Select(card => card.Id))
+                string.Join(",", Deck.Resolving.Select(card => card.Id)),
+                Values.CanonicalForm()
             });
         }
     }
@@ -152,12 +155,12 @@ namespace Bloomdrawn.Engine.Combat
             return CommandResult<CombatState>.Accepted(enemyPhaseStart, transitions);
         }
 
-        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence)
+        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence, CombatValues values = null, CombatPhase? phase = null)
         {
             if (current == null) throw new ArgumentNullException(nameof(current));
             if (deck == null) throw new ArgumentNullException(nameof(deck));
             if (mana == null) throw new ArgumentNullException(nameof(mana));
-            return new CombatState(current.Setup, current.Phase, current.RoundNumber, nextEventSequence, deck, mana);
+            return new CombatState(current.Setup, phase ?? current.Phase, current.RoundNumber, nextEventSequence, deck, mana, values ?? current.Values);
         }
 
         private static CombatDeckState DrawOpeningHand(CombatDeckState deck)
