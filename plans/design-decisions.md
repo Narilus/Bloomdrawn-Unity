@@ -250,9 +250,9 @@ Defines the exposed active-run checkpoint contract. Persisted combat snapshots m
 
 ## DD-05 - Gacha Rates and Pity
 
-**Status:** approved
+**Status:** open  
 **Opened:** 2026-06-22  
-**Approved:** 2026-07-26
+**Approved:** pending  
 **Required before:** M8A decision lock and M8X banner equipment expansion<br>
 **Owner/approver:** Project owner
 
@@ -277,11 +277,11 @@ Use current design anchors until this decision is approved: top-rarity equivalen
 
 ### Approved Decision
 
-Option 2 is approved. Onboarding is a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat.
+Pending project-owner approval.
 
 ### Rationale
 
-This introduces all four starter engines without requiring a single overloaded tutorial encounter or deferring essential guidance into an otherwise uncurated first Run.
+Pending.
 
 ### Required Document Mirrors
 
@@ -465,10 +465,10 @@ Settings/profile state affecting.
 
 ## DD-09 - Starter Onboarding
 
-**Status:** open  
+**Status:** approved
 **Opened:** 2026-06-22  
-**Approved:** pending  
-**Required before:** tutorial implementation  
+**Approved:** 2026-07-26
+**Required before:** M5H onboarding  
 **Owner/approver:** Project owner
 
 ### Question
@@ -491,11 +491,11 @@ Use option 2: a short sequence with one focused beat per Domain, ending in a com
 
 ### Approved Decision
 
-Pending project-owner approval.
+Option 2 is approved. Onboarding is a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat.
 
 ### Rationale
 
-Pending.
+This introduces all four starter engines without requiring a single overloaded tutorial encounter or deferring essential guidance into an otherwise uncurated first Run.
 
 ### Required Document Mirrors
 
