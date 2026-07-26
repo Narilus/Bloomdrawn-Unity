@@ -1,0 +1,19 @@
+{
+  "name": "Bloomdrawn.Editor",
+  "rootNamespace": "Bloomdrawn.Editor",
+  "references": [
+    "Bloomdrawn.Application",
+    "Bloomdrawn.Presentation"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

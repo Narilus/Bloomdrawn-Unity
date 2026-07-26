@@ -1,0 +1,17 @@
+{
+  "name": "Bloomdrawn.Application",
+  "rootNamespace": "Bloomdrawn.Application",
+  "references": [
+    "Bloomdrawn.Engine",
+    "Bloomdrawn.Content"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

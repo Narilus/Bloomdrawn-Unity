@@ -1,0 +1,16 @@
+{
+  "name": "Bloomdrawn.Presentation",
+  "rootNamespace": "Bloomdrawn.Presentation",
+  "references": [
+    "Bloomdrawn.Application"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
