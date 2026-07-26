@@ -643,3 +643,63 @@ None.
 ### Integration notes
 
 The only legal M1B public commands are `BeginCombat` during `CombatSetup` and `EndTurn` during `PlayerAction`. Internal transitions emit semantic `combat.phase-entered` events with monotonically increasing sequence values; terminal transitions are modeled for M1E to invoke under DD-01 Atomic Stop.
+
+## 2026-07-26 - Task M1C: Card Instances and Piles
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` sections 5 and 6.4 through 6.7; DD-23, DD-27, and DD-28
+**Plan/task file:** `plans/tasks/M1C-card-instances-piles.md`
+**Commit:** pending
+
+### Outcome
+
+Added pure, stable owner-aware runtime card instances and Draw, Hand, Discard, Graveyard, and Resolving pile state for the M1 fixture deck. Card base cost is derived from the validated fixture definition; draw-to-five and deterministic reshuffle use only `combat.shuffle`.
+
+### Files and assets changed
+
+- Pure Engine card-instance, tags, pile state, movement, draw, and reshuffle contracts.
+- M1A fixture setup projection now carries validated printed base cost into runtime deck construction.
+- Edit Mode pile invariant coverage and required Unity metadata.
+
+### Tests added or updated
+
+- Stable card ID/owner construction, draw-to-five, reshuffle stream isolation, unchanged-state rejected movement, hand-target counting, and cross-pile identity preservation.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Project validation | pass | `Tools\\validate.ps1` completed successfully. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\M1C-EditMode-results.xml`: 33 passed. |
+| CLI/Pipeline project health | pass | `bloom.health` reported not compiling and a valid 19-definition registry. |
+| Visual/interaction/build validation | not required | M1C is pure Engine state only. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- DD-23 metadata is inert: no copy, hidden-zone selection, generated-card effect, or production-card behavior exists.
+
+### Unity/project/package impact
+
+None.
+
+### Save, schema, migration, and content-version impact
+
+No persistence or production-content change.
+
+### Asset/provenance impact
+
+None.
+
+### Known follow-up
+
+- M1D owns card play, Mana, targeting validation, and cost calculation.
+
+### Integration notes
+
+Rejected movement returns the original state and does not consume RNG; discard reshuffles only when Draw cannot fulfill the hand-target request.
