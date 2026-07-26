@@ -46,12 +46,12 @@ A lower layer may not redefine a higher layer. If implementation exposes a desig
 | **DD-01 - Combat terminal timing** | Resolved for M1 combat finalization | Approved Atomic Stop: terminal state is checked after each atomic terminal-capable effect, and remaining non-terminal sub-effects are skipped once victory or defeat is reached. |
 | **DD-02 - Domain tuning lock** | Resolved for M2A production schema/content lock | Approved launch Domain resource values, UI strings, reset/persistence rules, and edge-case invariants from `docs/DESIGN.md` section 3; values marked tuning remain adjustable. |
 | **DD-03 - Launch character tuning lock** | Resolved for M2A and M5A content lock | Approved all eight section 4 launch kits as implementation anchors; M2 implements the starter four first and M5 implements the remaining four. |
-| **DD-04 - Save checkpoints** | M4 resume UX | Decide which checkpoints are exposed: map/node only, stable combat action boundaries, or broader mid-combat recovery. |
+| **DD-04 - Save checkpoints** | Resolved for M4 resume UX | Approved Option 2: expose map/node boundaries and stable fully resolved combat-action boundaries; exclude mid-resolution, mid-animation, and interaction-state recovery. |
 | **DD-05 - Gacha rates and pity** | M8A decision lock | Approve exact rates, soft-pity table/formula, hard pity, featured guarantee, and rounding. |
 | **DD-06 - First-acquisition protection** | M8A decision lock | Approve early duplicate-frustration protection after the starter party. |
 | **DD-07 - Duplicate ladder** | M8A decision lock | Approve exact C1-C5 duplicate benefits and any post-cap compensation. |
 | **DD-08 - Content intensity settings** | M10/M11 content lock | Approve warning taxonomy and player-facing intensity/accessibility settings. |
-| **DD-09 - Starter onboarding** | Tutorial implementation | Approve tutorial order, curated encounters, and first-run guidance for Mara, Thalassa, Sephira, and Azael. |
+| **DD-09 - Starter onboarding** | Resolved for M5H onboarding | Approved Option 2: a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat. |
 | **DD-10 - Reward economy** | Production M6/M8/M8T/M8X reward tables | Approve direct pulls, EXP items, Sigils, persistent currency, Obols, first-clear, and repeat reward quantities. M3/M4 may prove transactions with isolated non-production tables. |
 | **DD-11 - Profile roster cap table** | M8A decision lock | Approve profile-level bands and maximum character level caps. |
 | **DD-12 - Trial difficulty/reward table** | M8T-A decision/schema lock | Approve Trial boss scaling, reward quantities, first-clear rewards, and repeat rewards. |
@@ -72,6 +72,7 @@ A lower layer may not redefine a higher layer. If implementation exposes a desig
 | **DD-27 - Unity runtime/presentation architecture** | Resolved for M0/M1 | Approved: Unity 6.5 Supported line (`6000.5.x`), C#, pure no-Unity engine assembly, URP 2D, uGUI runtime UI, Input System, independent actor views, and experimental CLI/Pipeline only as development automation. |
 | **DD-28 - Card hand and play-threshold interaction** | Resolved for M1H/M9 polish | Approved: bottom-centred fan, hover rise, upward drag, responsive Play Area threshold, disarm on return below threshold, release-to-cast for target-complete cards, target-selection state for explicit targets, and click/keyboard cancellation parity. |
 | **DD-29 - Generated art policy** | Resolved for all art milestones | Approved: AI-generated art is allowed at every stage and may be release-quality after human review; generation method is provenance, not placeholder status. |
+| **DD-31 - Windows performance acceptance baseline** | M10E performance validation | Approve the Windows hardware class, resolution, frame-time target, memory budget, representative scenarios, and acceptance tolerances. |
 
 ### 1.3 Change Classification
 
@@ -149,6 +150,8 @@ Requirements:
 - random outcomes return labelled ranges or uncertainty;
 - command preview and command resolution share calculation helpers;
 - UI may render previews but may not reproduce gameplay calculations independently.
+
+M2H establishes the first minimal authoritative, side-effect-free evaluator needed for starter target/resource previews. M9C expands the same evaluator's coverage and closes production preview UX; M1 does not introduce a general preview system.
 
 ### 2.4.1 Future Advanced Character Guardrails
 
@@ -567,7 +570,7 @@ Implement:
 - stable runtime character-owner and enemy-instance IDs unrelated to Unity instance IDs;
 - shared party Max HP calculated from the four character contributions;
 - owner-aware card instances and an eight-card fixture starting deck;
-- encounter enemy instantiation and visible initial intent data.
+- encounter enemy instantiation and deterministic initial intent data sufficient for the fixture encounter.
 
 Rules:
 
@@ -635,11 +638,10 @@ Implement:
 
 Implement:
 
-- visible attack intent data;
-- stable enemy slot ordering;
-- sequential enemy action resolution;
-- intent regeneration after enemy end;
-- event metadata sufficient for the presentation adapter to animate one enemy action at a time without redefining slot order.
+- evolve M1A's fixture initial intent into the complete visible enemy-intent lifecycle;
+- establish stable enemy slot ordering;
+- implement sequential enemy action resolution and intent regeneration after enemy end;
+- provide event metadata sufficient for the presentation adapter to animate one enemy action at a time without redefining slot order.
 
 ## Task M1G - Combat Stage and Independent Actor Views
 
@@ -771,6 +773,7 @@ Complete and validate the production contract for:
 - apparent adult age band, gameplay-scale silhouette, costume structure, palette, concrete material/anatomy cues, horror motif, pose language, content warnings, and portrait/combat-sprite/ultimate-VFX references;
 - explicit review/readiness status for presentation fields; generated art is permitted and is not automatically placeholder content.
 - logical presentation asset IDs that resolve through the Unity presentation catalog rather than direct gameplay references to prefab/filename paths.
+- expand the M0 presentation asset catalogue and Editor validation for the production reference kinds required here: portrait, combat-sprite, and Ultimate-VFX bindings; retain generic fallback bindings and keep deterministic content limited to logical IDs.
 
 No production character may enter the normal registry before this contract and its gates pass.
 
@@ -890,7 +893,8 @@ Implement:
 - Domain helper in the reserved upper-left party-resource area;
 - owner badges on cards;
 - resource counters;
-- target/resource previews;
+- establish the minimal authoritative, side-effect-free evaluator for target/resource previews, reusing command validation and calculation helpers without mutating state or consuming live RNG;
+- render target/resource previews from that evaluator rather than reproducing formulas in UI code;
 - ultimate readiness UI;
 - bind Mara, Thalassa, Sephira, and Azael to independent production actor views through logical asset references resolved by the M0F `PresentationAssetCatalog`;
 - generated/reviewed portraits and combat art may be used immediately when available; generated provenance does not downgrade them to placeholder status;
@@ -905,7 +909,8 @@ Implement:
 - remove M1 fixture characters and cards from app/runtime bundles, developer-facing registries, and selectable developer profiles;
 - retain only minimal fixture equivalents under dedicated `GameContent/fixtures` / test sources where production-independent regression coverage is valuable;
 - regenerate or replace M1 golden combat evidence if its content source or canonical trace changes, without weakening deterministic assertions;
-- reject fixture character/card IDs from production profiles, saves, runtime registries, and active-run payloads;
+- reject fixture character/card IDs from production registries, normal application startup/runtime state, and payloads that exist through M2;
+- leave persisted-profile, save, and active-run payload rejection/migration validation introduced by M4 to M4A/M4B/M4F;
 - add release-oriented scans proving normal application startup cannot load the retired M1 fixture party.
 
 **M2 exit criteria:**
@@ -1007,6 +1012,8 @@ Validation:
 - node distribution bounds;
 - legal Collapsing Node/Symptom route states are enumerated, not checked only as a static graph;
 - a canonical safe-path fixture/topology matches the behavior shown in `plans/reference/collapsing-node-safe-path-reference.png`.
+- the canonical safe-path fixture satisfies DD-24's textual topology and behavioral invariants regardless of image availability.
+- when the reference image is available, record and pass its separate visual topology comparison; when it is absent, report only that image-dependent comparison as blocked and do not invent its visual composition.
 
 ## Task M3E - Node Resolution
 
@@ -1075,7 +1082,9 @@ Implement E2E scenario:
 6. purchase item;
 7. reach Boss.
 
-The E2E must cover the reference safe-path behavior shown in `plans/reference/collapsing-node-safe-path-reference.png`: entering a Collapsing Node causes no immediate mutation, leaving it collapses that node, and a later return to the Shop may be forced through the once-triggered Symptom route.
+The E2E must cover DD-24's textual canonical safe-path topology and behavior: the Collapsing-first route enters without immediate mutation, accepted departure collapses the bypass, and a later Shop return uses the once-triggered Symptom route; the Symptom-first route preserves the intact Collapsing Node until later departure. Preview/cancel/rejection paths preserve topology, lifecycle state, consequences, and RNG.
+
+When `plans/reference/collapsing-node-safe-path-reference.png` is available, the E2E also records and passes the required visual topology comparison. If it remains absent, report only that image-dependent comparison as blocked; do not infer or recreate its visual composition.
 
 The primary E2E covers the Collapsing-first route. Engine or integration tests must also cover the Symptom-first route plus preview/cancel no-mutation cases for Symptom or Boss confirmation while standing on a Collapsing Node.
 
@@ -1107,6 +1116,8 @@ Save:
 - Obols;
 - queued bankable rewards.
 
+Reject or explicitly migrate persisted active-run payloads that contain retired M1 fixture character/card IDs; do not silently treat them as production content.
+
 ## Task M4B - Profile Persistence
 
 Persist:
@@ -1116,6 +1127,8 @@ Persist:
 - saved parties;
 - generic validated inventory quantities for reward families implemented through M4;
 - reward ledger and run history needed to audit banking/finalization.
+
+Reject or explicitly migrate persisted profile payloads that contain retired M1 fixture character/card IDs.
 
 Later M8, M8T, and M8X profile sections require explicit save-schema changes, migrations, and compatibility tests when those systems become live.
 
@@ -1136,15 +1149,15 @@ Never bank:
 
 ## Task M4D - Save/Resume UX
 
-Expose only approved checkpoints from DD-04.
-
-Until DD-04 is approved, implement safe schema support but expose:
+Expose the approved DD-04 checkpoints only:
 
 - map movement completion;
 - node consequence commit;
 - Shop purchase;
 - reward choice;
-- stable ordinary player-action boundary if enabled by task scope.
+- stable fully resolved combat-action boundary.
+
+Do not expose recovery from mid-resolution, mid-animation, or UI interaction/drag/target-selection state.
 
 ## Task M4E - Run Finalization
 
@@ -1166,6 +1179,7 @@ E2E:
 - complete run;
 - verify profile inventory mutation;
 - verify Obols did not persist.
+- reject or explicitly migrate persisted profile, save, and active-run payloads containing retired M1 fixture character/card IDs.
 
 **M4 exit criteria:**
 
@@ -1179,7 +1193,7 @@ E2E:
 
 ## M5 Goal
 
-Implement remaining launch characters and roster/party UI.
+Implement remaining launch characters, roster/party UI, and approved starter onboarding.
 
 ## Task M5A - Launch Roster Schema Completion and Validation
 
@@ -1253,9 +1267,22 @@ Implement:
 
 M5 does not assemble a versioned banner pool. M8 consumes banner-eligible production metadata when its banner schema and decisions are locked.
 
+## Task M5H - Starter Onboarding
+
+Implement the DD-09-approved, schema-authored onboarding sequence after M4 profile persistence and M5G starter-profile prerequisites exist:
+
+- one focused teaching beat each for Flesh, Abyss, Spirit, and Void using curated starter cards and encounters;
+- a final complete starter-party combat;
+- explicit tutorial completion and one-time reward state with compatible profile persistence handling;
+- validation that tutorial content resolves only starter-party cards, valid curated encounters, and approved reward references;
+- first-run entry without gacha setup after onboarding completes.
+
+Do not introduce banner, Trial, equipment, duplicate, or other future progression payloads while recording tutorial state.
+
 **M5 exit criteria:**
 
 - all eight launch characters load from content and play without production hardcoding.
+- the approved starter onboarding sequence completes with the correct four-character starter party and persists only its live tutorial/reward state.
 
 ---
 
@@ -1790,7 +1817,7 @@ Polish the M1H system rather than reimplementing it:
 
 ## Task M9C - Authoritative Preview Layer
 
-Implement:
+Expand the minimal authoritative evaluator established in M2H and close production preview UX. Implement:
 
 - damage previews;
 - Shield previews;
@@ -1925,6 +1952,8 @@ Implement/finalize production bindings for M9 presentation tokens:
 
 ## Task M10E - Readability, Loading, and Performance Validation
 
+DD-31 must be approved before performance acceptance is evaluated. Do not choose or assume a Windows hardware class, display resolution, frame-time target, memory budget, representative scenario, or tolerance here.
+
 Validate with Unity Profiler, Memory Profiler, Unity 6.5's 2D Profiler, and equivalent project instrumentation as appropriate. Use the 2D Profiler in particular to inspect sprite-rendering counts and sprite-atlas usage on representative combat scenes:
 
 - effects do not hide intents/cards/HP;
@@ -1934,7 +1963,7 @@ Validate with Unity Profiler, Memory Profiler, Unity 6.5's 2D Profiler, and equi
 - reduced motion removes large movement, camera shake, long particle travel, and nonessential parallax without removing mechanical information;
 - horror cues remain visible at gameplay scale and do not depend only on subtle timing, reflection mismatch, animation, or prose;
 - Domain identity remains distinguishable without relying on colour alone;
-- target frame-time/memory baseline for the declared Windows reference hardware class;
+- the approved DD-31 Windows hardware, display, frame-time, memory, representative-scenario, and tolerance baseline;
 - asset loading/import/catalog failures cannot corrupt deterministic state;
 - generated and non-generated assets are judged by identical runtime quality/readability requirements.
 
@@ -2029,6 +2058,7 @@ Audit:
 - Unity 6.5 2D Profiler sprite-rendering and sprite-atlas behaviour;
 - CPU/GPU frame timing and Canvas rebuild/batching hotspots where applicable;
 - memory usage and asset residency.
+- compliance with the approved DD-31 Windows performance acceptance baseline.
 
 ## Task M11G - Release Candidate and Content Lock
 
@@ -2094,7 +2124,7 @@ Required task-plan files should eventually exist under `plans/tasks/` or an equi
 - M2A through M2I
 - M3A through M3H
 - M4A through M4F
-- M5A through M5G
+- M5A through M5H
 - M6A through M6G
 - M7A through M7D
 - M8A through M8I

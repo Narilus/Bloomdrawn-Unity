@@ -194,9 +194,9 @@ No immediate save, schema, engine-version, or content-version impact from this d
 
 ## DD-04 - Save Checkpoints
 
-**Status:** open  
+**Status:** approved
 **Opened:** 2026-06-22  
-**Approved:** pending  
+**Approved:** 2026-07-26
 **Required before:** M4 save/resume UX  
 **Owner/approver:** Project owner
 
@@ -217,20 +217,20 @@ The save schema may represent complete state earlier than the UI exposes all pos
 
 ### Proposed Baseline
 
-Expose map/node boundaries plus stable combat action boundaries. Do not expose arbitrary mid-resolution or mid-animation saves.
+Expose map/node boundaries plus stable fully resolved combat-action boundaries. Do not expose arbitrary mid-resolution, mid-animation, or interaction-state recovery.
 
 ### Approved Decision
 
-Pending project-owner approval.
+Option 2 is approved. Player-visible save/recovery checkpoints are map/node boundaries and stable, fully resolved combat-action boundaries. Mid-resolution, mid-animation, and interaction-state recovery are excluded.
 
 ### Rationale
 
-Pending.
+This preserves deterministic recovery at meaningful committed state boundaries without requiring presentation or in-progress command state to become save data.
 
 ### Required Document Mirrors
 
 - `docs/DESIGN.md`: save contract and UX.
-- M4 task files.
+- `plans/implementation_plan.md`: M4D save/resume UX and M4F persistence E2E.
 - E2E save/resume matrix.
 
 ### Tests and Acceptance Evidence
@@ -238,20 +238,21 @@ Pending.
 - Save after map movement.
 - Save after node consequence.
 - Save after purchase/reward choice.
-- Save after fully resolved player action if approved.
+- Save after a fully resolved player action.
+- No save/recovery path exposes a mid-resolution, mid-animation, or interaction-state snapshot.
 - Reload preserves RNG and authoritative state.
 
 ### Save/Migration/Content-Version Impact
 
-Defines active run save shape and compatibility expectations.
+Defines the exposed active-run checkpoint contract. Persisted combat snapshots must represent only fully resolved command boundaries; transient UI interaction and presentation playback state remain non-authoritative and unsaved.
 
 ---
 
 ## DD-05 - Gacha Rates and Pity
 
-**Status:** open  
+**Status:** approved
 **Opened:** 2026-06-22  
-**Approved:** pending  
+**Approved:** 2026-07-26
 **Required before:** M8A decision lock and M8X banner equipment expansion<br>
 **Owner/approver:** Project owner
 
@@ -276,11 +277,11 @@ Use current design anchors until this decision is approved: top-rarity equivalen
 
 ### Approved Decision
 
-Pending project-owner approval.
+Option 2 is approved. Onboarding is a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat.
 
 ### Rationale
 
-Pending.
+This introduces all four starter engines without requiring a single overloaded tutorial encounter or deferring essential guidance into an otherwise uncurated first Run.
 
 ### Required Document Mirrors
 
@@ -500,17 +501,18 @@ Pending.
 
 - `docs/DESIGN.md`: onboarding.
 - Tutorial content data.
-- M5 starter/development fixtures.
+- `plans/implementation_plan.md`: M5H onboarding implementation after starter-profile and persistence prerequisites exist.
 
 ### Tests and Acceptance Evidence
 
 - Starter profile owns the correct four characters.
-- Tutorial content references valid cards/enemies.
+- Tutorial content references valid starter cards, curated encounters, and the four focused Domain teaching beats.
+- The final tutorial encounter uses the complete starter party.
 - First run can begin without gacha setup.
 
 ### Save/Migration/Content-Version Impact
 
-Profile tutorial flags and one-time rewards.
+M5H introduces explicit profile tutorial-completion/one-time-reward state with compatible persistence handling; it must not reserve future gacha, Trial, or equipment payloads.
 
 ---
 
@@ -1377,6 +1379,8 @@ Should the launch Labyrinth's one-use safe-path hazard be modeled as a Fragile t
 
 The intended safe-path hazard is a visually distinct Collapsing Node that the player can stand on. It remains usable while occupied and collapses only after the player successfully departs from it. This creates a reversible-looking shortcut that is safe immediately but can make later Shop return paths more expensive. The topology reference is stored at `plans/reference/collapsing-node-safe-path-reference.png`.
 
+The image remains the canonical visual comparison when present. The required fixture topology and behavior are also defined textually below, so a missing image blocks only image-dependent visual comparison; it does not authorize invention of the missing visual composition or weaken the deterministic topology contract.
+
 The map contract must remain deterministic, previewable, accessible, and saveable. Rejected or cancelled movement must not mutate map state or consume RNG.
 
 ### Options Considered
@@ -1405,6 +1409,16 @@ Rules:
 - Collapsed nodes remain visually indicated but are no longer valid destinations.
 - M3 Collapsing Nodes are travel-only, degree-2 gate/bypass nodes by default.
 
+Canonical safe-path fixture contract:
+
+- A Start-to-Boss spine contains two distinct junctions connected by a safe spine route; collapsing the bypass cannot orphan Boss reachability.
+- A side loop joins those junctions through exactly two distinct degree-2 gates: one travel-only Collapsing Node and one Symptom node.
+- The side-loop interior contains the revisitable Shop and its premium offer; the Collapsing Node and Symptom are the only loop gates between the spine junctions and the Shop interior.
+- The Collapsing-first route enters the Shop through the intact Collapsing Node without immediate mutation. Accepted departure collapses that node, and a later Shop return from the spine must use the once-triggered Symptom route.
+- The Symptom-first route commits the Symptom once, leaves the Collapsing Node intact until it is later departed, and preserves the same Boss-safe spine route.
+- Route preview and any destination confirmation show the pending prior-node collapse and destination consequence without mutating state. Cancellation or rejection preserves topology, node lifecycle, consequences, and RNG state.
+- Save/reload preserves current position, intact/occupied/collapsed lifecycle state, spent Symptom state, Shop stock/purchases, and the route behavior above.
+
 ### Rationale
 
 The node-scoped model matches the intended safe-path fantasy: the player can step onto a visibly risky shortcut without paying immediately, but leaving it spends that shortcut and may force a future Symptom route. It is easier for players to reason about than an invisible edge-state rule and gives UI/accessibility a concrete disabled node to present after collapse.
@@ -1413,7 +1427,7 @@ The node-scoped model matches the intended safe-path fantasy: the player can ste
 
 - `docs/DESIGN.md`: Labyrinth section, node revisit table, hazard timing, map invariants, map UI, milestone mirrors, glossary, and design-lock checklist.
 - `plans/implementation_plan.md`: DD gate table, M3B/M3D/M3E/M3G/M3H tasks, and M7 route-economy reports.
-- `plans/reference/collapsing-node-safe-path-reference.png`: topology reference only, not production UI art or a renderer target.
+- `plans/reference/collapsing-node-safe-path-reference.png`: required topology visual-comparison reference only, not production UI art or a renderer target. If absent, record only the image-dependent comparison as blocked; do not infer or recreate its visual composition.
 
 ### Tests and Acceptance Evidence
 
@@ -1427,6 +1441,8 @@ When implemented, tests must prove:
 - collapsed nodes cannot be selected as destinations;
 - Boss reachability and claimed Shop revisitability survive every legal Collapsing Node/Symptom sequence;
 - collapsed nodes are visually and accessibly distinct from current, reachable, unresolved, and spent nodes.
+- the canonical textual safe-path fixture contract passes for both Collapsing-first and Symptom-first routes.
+- when the reference image is available, the fixture topology matches it visually; when unavailable, this comparison is reported as blocked separately from the required textual behavior tests.
 
 ### Save/Migration/Content-Version Impact
 
@@ -1851,6 +1867,56 @@ The package is already installed by Unity and is available to Editor/application
 ### Save/Migration/Content-Version Impact
 
 This selects JSON representation only. M0E defines save schema/version, envelope, checksum, validation, atomic write, fallback, and migrations.
+
+---
+
+## DD-31 - Windows Performance Acceptance Baseline
+
+**Status:** open
+**Opened:** 2026-07-26
+**Approved:** pending
+**Required before:** M10E readability, loading, and performance validation
+**Owner/approver:** Project owner
+
+### Question
+
+Which Windows hardware class, display resolution, frame-time target, memory budget, representative scenarios, and acceptance tolerances define release performance validation?
+
+### Context and Constraints
+
+Windows is the primary development and validation platform, but no authority document currently defines numerical performance acceptance. M10E must validate an approved baseline rather than silently selecting hardware or budgets during implementation.
+
+### Options Considered
+
+1. One named Windows reference configuration with a fixed display resolution and unified frame-time and memory budgets.
+2. Separate minimum and recommended Windows configurations with tier-specific display, frame-time, and memory budgets.
+3. A Windows-only release baseline with the hardware tier and numerical targets selected in a later performance-lock decision.
+
+### Proposed Baseline
+
+Pending project-owner approval. No hardware, resolution, frame-time, memory, or tolerance values are selected by this record while it remains open.
+
+### Approved Decision
+
+Pending project-owner approval.
+
+### Rationale
+
+Pending.
+
+### Required Document Mirrors
+
+- `docs/DESIGN.md`: performance and release-validation language.
+- `plans/implementation_plan.md`: design-gate table, M10E, M11F, and release acceptance criteria.
+- Performance test matrix, profiler captures, and release checklist once approved.
+
+### Tests and Acceptance Evidence
+
+After approval, M10E must measure the declared representative combat/menu/loading scenarios against the approved hardware, display, frame-time, memory, and tolerance contract. Undeclared numbers are not valid acceptance criteria.
+
+### Save/Migration/Content-Version Impact
+
+No save, migration, engine-version, or content-version impact.
 
 ---
 

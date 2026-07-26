@@ -345,7 +345,7 @@ Every card reads stats and ultimate gauge from its owner. Domain resources remai
 
 The launch roster contains eight characters, two per Domain.
 
-**[DECISION] Production onboarding:** the profile begins with Mara, Thalassa, Sephira, and Azael, guaranteeing one character from each Domain and a valid party of four. The tutorial introduces all four engines with curated cards and encounters. Venelis, Nyxalia, Kibane, and Mira Nox enter the standard gacha pool immediately after banners unlock.
+**[DECISION] Production onboarding:** the profile begins with Mara, Thalassa, Sephira, and Azael, guaranteeing one character from each Domain and a valid party of four. The approved tutorial is a short sequence with one focused teaching beat per launch Domain, using curated cards and encounters, and ending in a complete starter-party combat. Venelis, Nyxalia, Kibane, and Mira Nox enter the standard gacha pool immediately after banners unlock.
 
 **[DECISION] Development profile:** automated tests, balance tools, and the local developer profile own all eight launch characters at level 1 so the entire system can be exercised without gacha setup.
 
@@ -1274,6 +1274,8 @@ Example routing consequences:
 After a Symptom node triggers once, it remains traversable and does not add further copies unless its authored rule explicitly says otherwise.
 
 Collapsing Nodes are one-use bypasses around another cost, usually a Symptom route. They are safe now and costly later, not permanently safe paths. A player who uses the Collapsing Node first can avoid the Symptom for the moment but may force that Symptom route when returning; a player who accepts the Symptom first preserves the Collapsing Node as a later shortcut.
+
+**Canonical fixture contract:** the deterministic test fixture has a Start-to-Boss spine with two distinct junctions connected by a safe spine route. A side loop joins those junctions through exactly two distinct degree-2 gates: one travel-only Collapsing Node and one Symptom node. The loop interior contains the revisitable Shop and premium offer, and the two gates are the only loop gates between the spine junctions and that interior. The Collapsing-first route enters the Shop without mutation, then collapses on accepted departure so a later return uses the once-triggered Symptom route. The Symptom-first route commits the Symptom once and preserves the Collapsing Node until it is later departed. Preview, cancellation, rejection, and destination confirmation preserve the DD-24 lifecycle/RNG contract; save/reload preserves current position, node lifecycle, spent Symptom state, and Shop state. The canonical image remains a required visual topology comparison when available. If it is absent, only that image-dependent comparison is blocked; its visual composition must not be inferred or recreated.
 
 ### 9.5 Travel-Only Hexes
 
@@ -2256,7 +2258,9 @@ Expected responsibilities:
 - `CombatPresenter` maps engine events/state changes to presentation tokens and actor/UI bindings;
 - `UiState` contains hover, selected card, drag session, target-selection state, modal state, log filters, animation speed, and reduced-motion state only.
 
-The Unity presentation layer also owns a `PresentationAssetCatalog` (or equivalent typed catalogue) that maps logical presentation IDs from validated content to `Sprite`, prefab, material, audio, VFX, and other Unity assets. The catalogue is presentation-only: deterministic state stores the logical ID, never the resolved Unity object. A minimal catalogue exists before production starter art is bound in M2; M10 closes completeness, import rules, budgets, and release validation.
+The Unity presentation layer also owns a `PresentationAssetCatalog` (or equivalent typed catalogue) that maps logical presentation IDs from validated content to `Sprite`, prefab, material, audio, VFX, and other Unity assets. The catalogue is presentation-only: deterministic state stores the logical ID, never the resolved Unity object. A minimal catalogue exists before production starter art is bound in M2; M2A expands its validation and bindings for starter portrait, combat-sprite, and Ultimate-VFX references while retaining generic fallbacks. M10 closes completeness, import rules, budgets, and release validation.
+
+M2H establishes the first minimal authoritative, side-effect-free evaluator required for starter target/resource previews. It reuses command validation and calculation helpers without mutation or live RNG consumption; M9 expands that evaluator and closes production preview UX rather than introducing UI-side rule duplication.
 
 A Unity component may submit a command but may not reproduce the engine rule in parallel. Scene/prefab references live in the presentation layer and may not leak into deterministic state.
 
@@ -2461,7 +2465,9 @@ Save atomically after:
 - a reward choice;
 - combat victory/defeat transition;
 - an explicit quit/save action;
-- each resolved player command if mid-combat resume is enabled.
+- each stable, fully resolved player command at the approved combat-action checkpoint.
+
+Player-visible recovery is limited to map/node boundaries and stable fully resolved combat-action boundaries. Mid-resolution, mid-animation, and interaction-state recovery are excluded; drag, target-selection, and presentation playback state remain non-authoritative and unsaved.
 
 A failed write does not replace the last valid snapshot.
 
@@ -2771,6 +2777,8 @@ Milestones are ordered to retire design and technical risk early. The project us
 - atomic purchases and finalization;
 - save corruption/recovery behaviour appropriate to the local file repository.
 
+Save/resume exposes map/node boundaries and stable fully resolved combat-action boundaries only; it excludes mid-resolution, mid-animation, and interaction-state recovery.
+
 M4 does not reserve empty banner, Trial, equipment, profile-level, duplicate, or future progression sections. M8, M8B/M8T, and M8X add those persisted contracts through explicit save-version changes and migrations.
 
 **Exit:** a run can be started, closed, resumed, completed, and reflected correctly in the profile without speculative future-state payloads.
@@ -2781,7 +2789,7 @@ M4 does not reserve empty banner, Trial, equipment, profile-level, duplicate, or
 - all 40 starting cards and generated Transcend cards;
 - completed character presentation briefs covering apparent age band, gameplay-scale silhouette, costume, palette, concrete material/anatomy cues, horror reveal, pose language, warnings, and logical asset references;
 - character/party screens;
-- starting roster/tutorial profile rules;
+- starting roster/tutorial profile rules, including a short focused teaching beat per launch Domain and a complete starter-party tutorial combat;
 - content and deterministic golden tests;
 - production actor bindings remain generic and use the same M1/M2 presentation contracts.
 
@@ -2888,12 +2896,12 @@ These decisions are tracked in `plans/design-decisions.md` and must be approved 
 1. **DD-01 Combat terminal timing:** Approved Atomic Stop; terminal state is checked after each atomic terminal-capable effect, and remaining non-terminal sub-effects are skipped once victory or defeat is reached.
 2. **DD-02 Domain tuning lock:** Approved. Section 3 launch Domain identities, resource names, UI strings, reset/persistence rules, and edge-case invariants are approved for first implementation; values marked tuning remain adjustable.
 3. **DD-03 Launch character tuning lock:** Approved. All eight section 4 launch kits are implementation anchors; M2 implements the starter four first, M5 implements the remaining four, and numeric tuning remains allowed unless marked invariant.
-4. **DD-04 Save checkpoints:** What moments are exposed for save/resume?
+4. **DD-04 Save checkpoints:** Approved Option 2. Expose map/node boundaries and stable fully resolved combat-action boundaries; exclude mid-resolution, mid-animation, and interaction-state recovery.
 5. **DD-05 Gacha rates and pity:** Exact rates, soft pity, hard pity, featured guarantees, and rounding.
 6. **DD-06 First-acquisition protection:** How does the game prevent early duplicate frustration?
 7. **DD-07 Duplicate ladder:** What do duplicates grant, and what compensation exists after completion?
 8. **DD-08 Content intensity settings:** What content warnings and intensity controls are required for release?
-9. **DD-09 Starter roster onboarding:** What exact tutorial order, curated encounters, and first-run party guidance introduce Mara, Thalassa, Sephira, and Azael?
+9. **DD-09 Starter roster onboarding:** Approved Option 2. Use a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat.
 10. **DD-10 Reward economy:** How many direct pulls, EXP items, Sigils, and persistent currency rewards are earned per mode, difficulty, and milestone?
 11. **DD-11 Profile roster cap table:** What profile levels unlock which maximum character levels?
 12. **DD-12 Trial difficulty and reward table:** What boss levels, reward quantities, and first-clear/repeat rewards apply to each Trial?
@@ -2908,12 +2916,13 @@ These decisions are tracked in `plans/design-decisions.md` and must be approved 
 21. **DD-21 Bloom identity and refraction premise:** What Bloom premise, Domain refraction rules, and art/writing constraints guide release-quality content?
 22. **DD-22 Advanced character mechanics and selfish costs:** Approved. Reserve generic extension points for post-launch run-persistent self-debt, Domain engine replacement, per-hit reactions, party-level stances, and Domain-resource reaction/amplifier systems; launch M2 must not implement those mechanics.
 23. **DD-23 Advanced card memory, copy, and hidden-zone selection:** Approved. Reserve card-copy/card-memory guardrails for owner-preserving temporary copies, safe hand-copy eligibility, copy lifetime, hidden-zone reveal/selection, and copy-triggered weapon hooks; launch M2 must not implement those mechanics.
-24. **DD-24 Collapsing Node lifecycle:** Approved. Collapsing Nodes are player-facing node-scoped travel nodes that collapse only after accepted departure.
+24. **DD-24 Collapsing Node lifecycle:** Approved. Collapsing Nodes are player-facing node-scoped travel nodes that collapse only after accepted departure; the canonical textual safe-path fixture contract is authoritative for behavior, while the image remains a separate required visual comparison when available.
 25. **DD-25 Node-primary Labyrinth topology:** Approved. Nodes own authored consequences and lifecycle state; edges own connectivity/reachability.
 26. **DD-26 Combat enemy placement and target readability:** Approved. Targetable enemies occupy the right/right-center stage with readable formation, target bounds, anchors, and focus mapping without changing authoritative enemy slot order.
 27. **DD-27 Unity runtime/presentation architecture:** Approved: Unity 6.5 Supported line (`6000.5.x`), C#, pure no-Unity engine assembly, URP 2D, uGUI runtime UI, Input System, independent actor views, and experimental CLI/Pipeline as development-only automation.
 28. **DD-28 Card hand and play-threshold interaction:** Approved: bottom-centred fan, hover rise, upward drag, responsive Play Area threshold, disarm on return below threshold, release-to-cast for target-complete cards, explicit target-selection state for single-target cards, and first-class click/keyboard cancellation paths.
 29. **DD-29 Generated art policy:** Approved: AI-generated art is permitted at every milestone and may be release-quality after human review; generation method is provenance, not placeholder status.
+31. **DD-31 Windows performance acceptance baseline:** Before M10E, approve the Windows hardware class, display resolution, frame-time target, memory budget, representative scenarios, and acceptance tolerances. No numerical baseline is currently selected.
 
 ---
 
@@ -3012,6 +3021,7 @@ These decisions are tracked in `plans/design-decisions.md` and must be approved 
 27. Approved DD-27 Unity architecture gate: Unity 6.5 Supported line (`6000.5.x`), C#, pure engine assembly, URP 2D, uGUI runtime UI, Input System, independent actor presentation, and development-only CLI/Pipeline automation.
 28. Approved DD-28 card interaction gate: the bottom-centred hand fans from stable authoritative order; upward drag crosses a responsive Play Area threshold; releasing armed target-complete cards casts, while explicit-target cards enter target selection; lowering/cancelling returns the card without mutation.
 29. Approved DD-29 generated-art gate: AI-generated art is permitted throughout production and can be release-quality after human review; it is not automatically placeholder content.
+30. What Windows hardware class, display resolution, frame-time target, memory budget, representative scenarios, and acceptance tolerances define M10E performance acceptance?
 
 ---
 
@@ -3043,6 +3053,7 @@ Before implementing beyond foundation work:
 - Advanced character mechanics and selfish-cost rules are approved as a future gate before post-launch characters alter Domain engines, add run-persistent self-debt, react to Domain-resource activity with party-scoped amplifiers, or require signature weapons that react to resource activity, Ultimate casts, or stance/aspect entry.
 - Advanced card-memory/copy rules are approved as a future gate before post-launch characters copy cards, store card snapshots, reveal hidden Draw cards for selection, or require copy-triggered signature weapon hooks.
 - Save checkpoint scope is approved before save UI work.
+- Windows performance acceptance baseline is approved before M10E validates performance.
 - Content warning and accessibility requirements are represented in task plans.
 - Tests are planned for all stated invariants.
 - Authored production content is schema-driven and loaded through the content registry.
