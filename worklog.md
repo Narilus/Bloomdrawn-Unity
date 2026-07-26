@@ -798,3 +798,33 @@ Added pure shared party and per-enemy HP/Shield state, owner-stat fixture effect
 ### Known follow-up
 
 - M1F owns enemy intent lifecycle and sequential enemy actions using these pure effect results.
+
+## 2026-07-26 - M1F: Enemy Intent and Sequential Actions
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§6.8–6.11, 7.8, 8.7, 15.4, 15.9, and 18.3; DD-01, DD-26, DD-27; `plans/tasks/M1F-enemy-intent-sequential-actions.md`
+**Commit:** pending
+
+### Outcome
+
+Converted M1A’s fixture initial intent into immutable M1 runtime slot/intent state. Enemy actions now advance only through an explicit enemy-phase command, act one stable slot at a time, emit presentation-ready stable IDs/intent/sequence facts, interrupt immediately on terminal state, and regenerate visible intents only after the final enemy action.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| `Tools\\validate.ps1` | pass, including Edit and Play Mode suites |
+| `unity test . --mode EditMode --output Logs\\M1F-EditMode-results.xml` | pass |
+| automated `bloom.health` | pass: Pipeline/editor ready, compile idle/successful, registry valid (19 definitions) |
+
+### Contract evidence
+
+- Fixture construction supplies initial data only; M1F exclusively owns runtime slot order, iteration, action resolution, and regeneration.
+- Two-enemy test fixtures prove slot 0 then slot 1, never simultaneous action resolution.
+- Defeat stops later slots and ordinary regeneration; invalid phase advancement is an unchanged-state rejection.
+- Events contain stable slot/enemy/target/intent/sequence facts and no presentation object references.
+
+### Known follow-up
+
+- M1G supplies independent actor layout; M1I maps this ordered semantic event stream to presentation tokens.

@@ -25,7 +25,8 @@ namespace Bloomdrawn.Engine.Combat
     public enum CombatCommandKind
     {
         BeginCombat,
-        EndTurn
+        EndTurn,
+        AdvanceEnemyAction
     }
 
     public sealed class CombatCommand
@@ -36,7 +37,7 @@ namespace Bloomdrawn.Engine.Combat
 
     public sealed class CombatState
     {
-        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null, CombatValues values = null)
+        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null, CombatValues values = null, IReadOnlyList<EnemySlot> enemySlots = null, int nextEnemySlotIndex = 0)
         {
             Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             Phase = phase;
@@ -45,6 +46,8 @@ namespace Bloomdrawn.Engine.Combat
             Deck = deck ?? CombatDecks.Create(setup);
             Mana = mana ?? ManaState.Full();
             Values = values ?? CombatValues.Create(setup);
+            EnemySlots = enemySlots ?? global::Bloomdrawn.Engine.Combat.EnemySlots.Create(setup);
+            NextEnemySlotIndex = nextEnemySlotIndex;
         }
 
         public CombatSetupResult Setup { get; }
@@ -54,6 +57,8 @@ namespace Bloomdrawn.Engine.Combat
         public CombatDeckState Deck { get; }
         public ManaState Mana { get; }
         public CombatValues Values { get; }
+        public IReadOnlyList<EnemySlot> EnemySlots { get; }
+        public int NextEnemySlotIndex { get; }
         public bool IsTerminal => Phase == CombatPhase.Victory || Phase == CombatPhase.Defeat;
 
         public string CanonicalForm()
@@ -69,7 +74,9 @@ namespace Bloomdrawn.Engine.Combat
                 string.Join(",", Deck.Draw.Select(card => card.Id)),
                 string.Join(",", Deck.Hand.Select(card => card.Id)),
                 string.Join(",", Deck.Resolving.Select(card => card.Id)),
-                Values.CanonicalForm()
+                Values.CanonicalForm(),
+                string.Join(",", EnemySlots.Select(slot => slot.SlotIndex.ToString(CultureInfo.InvariantCulture) + ":" + slot.Intent.Kind + ":" + slot.Intent.Damage.ToString(CultureInfo.InvariantCulture))),
+                NextEnemySlotIndex.ToString(CultureInfo.InvariantCulture)
             });
         }
     }
@@ -125,6 +132,8 @@ namespace Bloomdrawn.Engine.Combat
                     return state.Phase == CombatPhase.PlayerAction
                         ? AdvanceToEnemyPhaseStart(state)
                         : RejectIllegalPhase(state, command.Kind);
+                case CombatCommandKind.AdvanceEnemyAction:
+                    return EnemyActionSequence.Advance(state);
                 default:
                     return CommandResult<CombatState>.Rejected(state, new RejectionDiagnostic("combat.unknown-command", "The combat command kind is not recognized."));
             }
@@ -155,12 +164,12 @@ namespace Bloomdrawn.Engine.Combat
             return CommandResult<CombatState>.Accepted(enemyPhaseStart, transitions);
         }
 
-        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence, CombatValues values = null, CombatPhase? phase = null)
+        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence, CombatValues values = null, CombatPhase? phase = null, IReadOnlyList<EnemySlot> enemySlots = null, int? nextEnemySlotIndex = null)
         {
             if (current == null) throw new ArgumentNullException(nameof(current));
             if (deck == null) throw new ArgumentNullException(nameof(deck));
             if (mana == null) throw new ArgumentNullException(nameof(mana));
-            return new CombatState(current.Setup, phase ?? current.Phase, current.RoundNumber, nextEventSequence, deck, mana, values ?? current.Values);
+            return new CombatState(current.Setup, phase ?? current.Phase, current.RoundNumber, nextEventSequence, deck, mana, values ?? current.Values, enemySlots ?? current.EnemySlots, nextEnemySlotIndex ?? current.NextEnemySlotIndex);
         }
 
         private static CombatDeckState DrawOpeningHand(CombatDeckState deck)
