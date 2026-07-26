@@ -737,3 +737,34 @@ Established and verified the required automated-only agent Editor workflow. The 
 ### Known follow-up
 
 - Resume M1D only after this repair is committed and the worktree is clean.
+
+## 2026-07-26 - M1D: Mana and Card Play
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` §§5.6–5.8, 6.5, 8.5, and 15.1; DD-27 and DD-28; `plans/tasks/M1D-mana-card-play.md`
+**Commit:** pending
+
+### Outcome
+
+Added pure authoritative Mana state and complete `PlayCard` validation. Fixture-derived runtime cards now retain their validated target and operation metadata. An accepted play spends its zero-floored final cost, moves the card from Hand to Resolving, and emits one ordered semantic event; it deliberately does not resolve card effects, reserve partial targets, or represent any UI interaction state.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Project validation | pass | `Tools\\validate.ps1` completed successfully, including Edit and Play Mode suites. |
+| M1D Edit Mode gate | pass | `unity test . --mode EditMode --output Logs\\M1D-EditMode-results.xml` exited successfully after the clean validation. |
+| Automated Editor health | pass | PID 22392 was launched by `Tools\\open-automated-editor.ps1` with `-automated`; `bloom.health` reported Pipeline/editor ready, `CompilationActive:false`, `CompileFailed:false`, `CompileSucceeded:true`, and `RegistryValid:true` with 19 definitions. |
+
+### Contract evidence
+
+- Base Mana is six and final cost floors at zero.
+- Phase, hand, owner, target completeness/legality, and Mana failures return the identical state with no events; rejected commands have no RNG input or consumption path.
+- `party` cards require no explicit enemy choice; `oneEnemy` cards require exactly one encounter enemy ID.
+- `CombatState` and the complete command contract contain no hover, drag, armed, staged-card, or target-selection fields.
+
+### Known follow-up
+
+- M1E owns effect resolution, damage, Shield, healing, and terminal outcome ordering for accepted resolving cards.

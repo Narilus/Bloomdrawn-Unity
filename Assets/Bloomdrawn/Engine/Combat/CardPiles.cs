@@ -7,13 +7,14 @@ using Bloomdrawn.Engine.Rng;
 namespace Bloomdrawn.Engine.Combat
 {
     public enum CardPile { Draw, Hand, Discard, Graveyard, Resolving }
+    public enum CardTargetKind { Party, OneEnemy }
     [Flags] public enum CardTags { None = 0, Retain = 1 }
 
     public sealed class CardInstance
     {
-        public CardInstance(string id, RuntimeParticipantId ownerId, string definitionId, int baseCost, CardTags tags, bool generated = false, bool combatScoped = false, bool spentOnce = false, bool copyProhibited = false, string upgradeId = null)
-        { Id = id; OwnerId = ownerId; DefinitionId = definitionId; BaseCost = baseCost; CurrentCost = baseCost; Tags = tags; Generated = generated; CombatScoped = combatScoped; SpentOnce = spentOnce; CopyProhibited = copyProhibited; UpgradeId = upgradeId; }
-        public string Id { get; } public RuntimeParticipantId OwnerId { get; } public string DefinitionId { get; } public int BaseCost { get; } public int CurrentCost { get; } public CardTags Tags { get; } public bool Generated { get; } public bool CombatScoped { get; } public bool SpentOnce { get; } public bool CopyProhibited { get; } public string UpgradeId { get; }
+        public CardInstance(string id, RuntimeParticipantId ownerId, string definitionId, int baseCost, CardTags tags, CardTargetKind targetKind, string operationKind, bool generated = false, bool combatScoped = false, bool spentOnce = false, bool copyProhibited = false, string upgradeId = null)
+        { Id = id; OwnerId = ownerId; DefinitionId = definitionId; BaseCost = baseCost; CurrentCost = baseCost; Tags = tags; TargetKind = targetKind; OperationKind = operationKind; Generated = generated; CombatScoped = combatScoped; SpentOnce = spentOnce; CopyProhibited = copyProhibited; UpgradeId = upgradeId; }
+        public string Id { get; } public RuntimeParticipantId OwnerId { get; } public string DefinitionId { get; } public int BaseCost { get; } public int CurrentCost { get; } public CardTags Tags { get; } public CardTargetKind TargetKind { get; } public string OperationKind { get; } public bool Generated { get; } public bool CombatScoped { get; } public bool SpentOnce { get; } public bool CopyProhibited { get; } public string UpgradeId { get; }
     }
 
     public sealed class CombatDeckState
@@ -29,7 +30,7 @@ namespace Bloomdrawn.Engine.Combat
         public static CombatDeckState Create(CombatSetupResult setup)
         {
             if (setup == null) throw new ArgumentNullException(nameof(setup));
-            var draw = setup.DeckRecipe.OrderBy(x => x.Order).Select(x => new CardInstance("combat.card." + setup.LineupId + "." + x.Order, x.OwnerId, x.CardDefinitionId, x.BaseCost, CardTags.None)).ToList();
+            var draw = setup.DeckRecipe.OrderBy(x => x.Order).Select(x => new CardInstance("combat.card." + setup.LineupId + "." + x.Order, x.OwnerId, x.CardDefinitionId, x.BaseCost, CardTags.None, ParseTargetKind(x.TargetKind), x.OperationKind)).ToList();
             return new CombatDeckState(draw, Array.Empty<CardInstance>(), Array.Empty<CardInstance>(), Array.Empty<CardInstance>(), Array.Empty<CardInstance>());
         }
         public static bool TryDrawToTarget(CombatDeckState state, AuthoritativeRngState rng, out CombatDeckState next)
@@ -52,6 +53,10 @@ namespace Bloomdrawn.Engine.Combat
             next = new CombatDeckState(draw, hand, discard, graveyard, resolving); return true;
         }
         private static IReadOnlyList<CardInstance> Pile(CombatDeckState state, CardPile pile) => pile == CardPile.Draw ? state.Draw : pile == CardPile.Hand ? state.Hand : pile == CardPile.Discard ? state.Discard : pile == CardPile.Graveyard ? state.Graveyard : state.Resolving;
+        private static CardTargetKind ParseTargetKind(string targetKind)
+        {
+            return string.Equals(targetKind, "party", StringComparison.Ordinal) ? CardTargetKind.Party : CardTargetKind.OneEnemy;
+        }
         private static void Shuffle(IList<CardInstance> cards, AuthoritativeRngState rng) { for (var i = cards.Count - 1; i > 0; --i) { var j = (int)(rng.NextUInt64(AuthoritativeRngStreams.CombatShuffle) % (ulong)(i + 1)); var t = cards[i]; cards[i] = cards[j]; cards[j] = t; } }
     }
 }

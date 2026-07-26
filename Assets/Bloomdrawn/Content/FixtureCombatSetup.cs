@@ -69,18 +69,22 @@ namespace Bloomdrawn.Content
 
     public sealed class FixtureDeckRecipeEntry
     {
-        public FixtureDeckRecipeEntry(int order, string cardDefinitionId, RuntimeParticipantId ownerId, int baseCost)
+        public FixtureDeckRecipeEntry(int order, string cardDefinitionId, RuntimeParticipantId ownerId, int baseCost, string targetKind, string operationKind)
         {
             Order = order;
             CardDefinitionId = cardDefinitionId;
             OwnerId = ownerId;
             BaseCost = baseCost;
+            TargetKind = targetKind;
+            OperationKind = operationKind;
         }
 
         public int Order { get; }
         public string CardDefinitionId { get; }
         public RuntimeParticipantId OwnerId { get; }
         public int BaseCost { get; }
+        public string TargetKind { get; }
+        public string OperationKind { get; }
     }
 
     public sealed class InitialEnemyIntent
@@ -142,7 +146,7 @@ namespace Bloomdrawn.Content
             var deck = lineup.DeckRecipe.Select((id, index) =>
             {
                 var definition = Require(catalog.Registry, id, ContentKind.Card);
-                return new FixtureDeckRecipeEntry(index, definition.Id, partyByDefinition[definition.OwnerId].RuntimeId, definition.PrintedCost.Value);
+                return new FixtureDeckRecipeEntry(index, definition.Id, partyByDefinition[definition.OwnerId].RuntimeId, definition.PrintedCost.Value, definition.TargetKind, definition.OperationKind);
             }).ToList();
             var enemies = encounter.EnemyIds.Select((id, index) =>
             {
