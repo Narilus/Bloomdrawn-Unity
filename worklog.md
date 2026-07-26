@@ -859,3 +859,34 @@ Created the dedicated `CombatStage` scene through project-owned Editor authoring
 ### Known follow-up
 
 - M1H adds card fan/drag/target interaction using the declared Hand Safe Area; M1I supplies runtime token playback and fixture bindings.
+
+## 2026-07-26 - M1H: Bottom-Centred Card Fan, Drag Play Area, and Targeting
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§5.6–5.8, 8.5, 8.9–8.10, and 15.1; DD-27 and DD-28; `plans/tasks/M1H-card-fan-drag-targeting.md`
+**Commit:** pending
+
+### Outcome
+
+Added presentation-only deterministic hand fan geometry and a single-session card interaction controller. The combat scene now supplies an explicit Play Area and full-canvas drag layer. The reparenting path uses `RectTransformUtility.ScreenPointToLocalPointInRectangle`; interactions only submit complete string-ID command payloads to an external sink and never compute costs, legality, targets, damage, RNG, or previews.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| focused HandInteraction Edit Mode tests | pass: 3/3 |
+| `Tools\\validate.ps1` | pass, including Edit and Play Mode suites |
+| M1H Edit/Play Mode commands | pass |
+| automated `bloom.health` and `bloom.scene-summary` | pass: compilation idle/successful, valid registry, saved `CombatStage` |
+
+### Interaction evidence
+
+- Fan positions derive only from hand order/count/current layout inputs and remain bottom-centred.
+- Below-threshold release cancels; upward arming and downward disarming are explicit interaction states.
+- Target-required cards stage without submission until an enemy ID is chosen; cancel and rejected sink submission restore resting state without pre-acceptance mutation.
+- The command sink receives complete card/owner/optional-enemy IDs only; no general preview evaluator or M2 gameplay capability was introduced.
+
+### Known follow-up
+
+- M1I owns the authoritative session adapter and maps accepted engine events to ordered presentation tokens.
