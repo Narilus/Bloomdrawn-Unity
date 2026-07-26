@@ -378,3 +378,69 @@ None.
 ### Integration notes
 
 Event order is represented by explicit sequence values and the golden checksum uses canonical state/event data, never frame, render, scene, or presentation state.
+
+## 2026-07-26 - Task M0E: Save Envelope and Repository Interfaces
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` sections 15.7 and 16.3-16.5; DD-30
+**Plan/task file:** `plans/tasks/M0E-save-envelope-repositories.md`
+**Commit:** pending
+
+### Outcome
+
+Added the M0 versioned save envelope with lower-camel JSON metadata fields (`saveSchemaVersion`, `engineVersion`, `contentVersion`, `checksum`, `payload`), canonical SHA-256 validation, typed profile/run repository interfaces, an in-memory repository, and local-file repositories. The Unity-facing factory supplies `Application.persistentDataPath`; all validation and file behavior remain in the application persistence boundary.
+
+### Files and assets changed
+
+- `Assets/Bloomdrawn/Application/Persistence/` envelope codec, validation result/diagnostics, fixture payload DTOs, repository interfaces, in-memory repository, injected-path local-file repositories, and `.previous` fallback.
+- `Assets/Bloomdrawn/Presentation/Persistence/UnityPersistentRepositories.cs` Unity path adapter/factory only.
+- `Assets/Bloomdrawn/Tests/EditMode/SaveRepositoryTests.cs` envelope, compatibility, repository, local JSON, recovery, and RNG continuation coverage.
+- `Bloomdrawn.Application.asmdef` JSON serializer reference for persistence only.
+
+### Tests added or updated
+
+- Envelope accepts matching metadata/checksum, exposes the specified JSON field name, rejects a checksum mismatch, and rejects an incompatible schema before returning a payload.
+- In-memory repository saves and loads minimal profile/run fixture payloads.
+- Local-file repository roundtrips the run payload through Newtonsoft JSON and continues `RngState` with identical subsequent output.
+- A deliberately invalid primary snapshot recovers the valid `.previous` snapshot after temp-write/replace.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Unity compile/import status | pass | Unity batch compilation succeeded. |
+| Project validation | pass | `Tools/validate.ps1` passed Edit Mode and Play Mode gates. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\M0E-EditMode-results.xml`. |
+| Play Mode tests | pass | `unity test . --mode PlayMode --output Logs\\M0E-PlayMode-results.xml`. |
+| Task-specific checks | pass | Application persistence source has no Unity object, scene, or presentation-state reference. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- DD-30's already-installed Newtonsoft package is used only for M0E save-facing JSON; the engine remains serializer-library agnostic.
+- The task-plan `--project-path` form is unsupported by the installed Unity CLI, so its documented positional-project equivalent was used.
+
+### Unity/project/package impact
+
+No package addition or upgrade. The existing Newtonsoft package is referenced by the application persistence assembly; `Application.persistentDataPath` is resolved only in the presentation-side Unity adapter.
+
+### Save, schema, migration, and content-version impact
+
+Introduced only M0 schema version 1 and minimal test profile/run payloads. No production content, future-system fields, migration, cloud sync, encryption, UI, scene path, instance ID, `UnityEngine.Object`, or presentation state is persisted.
+
+### Asset/provenance impact
+
+None.
+
+### Known follow-up
+
+- M4 owns production profile/run fields, checkpoint policy, save migrations, and broader recovery behavior.
+
+### Integration notes
+
+Consumers depend on `IProfileRepository`/`IRunRepository`; local storage uses an injected root path for tests and atomic replacement with a recoverable `.previous` snapshot for runtime use.
