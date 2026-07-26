@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.gamma-shield
+kind: Card
+displayName: Fixture Gamma Shield
+presentationAssetId: presentation.card.fixture-gamma-shield
+ownerId: fixture.m1.character.gamma
+printedCost: 1
+targetKind: party
+operationKind: shield

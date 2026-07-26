@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.delta-shield
+kind: Card
+displayName: Fixture Delta Shield
+presentationAssetId: presentation.card.fixture-delta-shield
+ownerId: fixture.m1.character.delta
+printedCost: 1
+targetKind: party
+operationKind: shield

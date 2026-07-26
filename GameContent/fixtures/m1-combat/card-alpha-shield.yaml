@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.alpha-shield
+kind: Card
+displayName: Fixture Alpha Shield
+presentationAssetId: presentation.card.fixture-alpha-shield
+ownerId: fixture.m1.character.alpha
+printedCost: 1
+targetKind: party
+operationKind: shield

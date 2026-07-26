@@ -1,0 +1,8 @@
+contentVersion: "0.1.0"
+id: fixture.m1.character.alpha
+kind: Character
+displayName: Fixture Alpha
+presentationAssetId: presentation.character.fixture-alpha
+maxHp: 24
+attack: 6
+defense: 3

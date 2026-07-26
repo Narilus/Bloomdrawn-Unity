@@ -1,0 +1,8 @@
+contentVersion: "0.1.0"
+id: fixture.m1.character.gamma
+kind: Character
+displayName: Fixture Gamma
+presentationAssetId: presentation.character.fixture-gamma
+maxHp: 20
+attack: 7
+defense: 2

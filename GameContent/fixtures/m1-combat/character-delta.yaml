@@ -1,0 +1,8 @@
+contentVersion: "0.1.0"
+id: fixture.m1.character.delta
+kind: Character
+displayName: Fixture Delta
+presentationAssetId: presentation.character.fixture-delta
+maxHp: 26
+attack: 4
+defense: 5

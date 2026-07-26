@@ -50,6 +50,7 @@ namespace Bloomdrawn.Content
     {
         private static readonly Regex StableIdPattern = new Regex("^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", RegexOptions.Compiled);
         private static readonly Regex PresentationIdPattern = new Regex("^presentation\\.(?:character|card|enemy|encounter|background|ui)\\.[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$", RegexOptions.Compiled);
+        private const string M1FixturePrefix = "fixture.m1.";
 
         public static ContentValidationResult Validate(IEnumerable<ContentDefinition> definitions, ContentOrigin origin)
         {
@@ -68,7 +69,7 @@ namespace Bloomdrawn.Content
 
             foreach (var definition in source)
             {
-                ValidateDefinition(definition, errors);
+                ValidateDefinition(definition, origin, errors);
             }
 
             foreach (var duplicate in source.Where(item => !string.IsNullOrWhiteSpace(item.Id))
@@ -91,7 +92,7 @@ namespace Bloomdrawn.Content
             return new ContentValidationResult(errors, errors.Count == 0 ? new ValidatedContent(origin, ordered) : null);
         }
 
-        private static void ValidateDefinition(ContentDefinition definition, ICollection<ContentValidationError> errors)
+        private static void ValidateDefinition(ContentDefinition definition, ContentOrigin origin, ICollection<ContentValidationError> errors)
         {
             if (string.IsNullOrWhiteSpace(definition.ContentVersion))
             {
@@ -117,6 +118,16 @@ namespace Bloomdrawn.Content
             {
                 errors.Add(new ContentValidationError("content.invalid-presentation-id", "Presentation asset ID is malformed or uses an unsupported role."));
             }
+
+            if (definition.Kind == ContentKind.FixtureLineup && origin != ContentOrigin.Fixture)
+            {
+                errors.Add(new ContentValidationError("content.fixture-only", "Fixture lineups may only be validated from fixture content."));
+            }
+
+            if (IsM1Fixture(definition))
+            {
+                ValidateM1FixtureFields(definition, errors);
+            }
         }
 
         private static void ValidateReferences(ContentDefinition definition, IReadOnlyDictionary<string, ContentDefinition> byId, ICollection<ContentValidationError> errors)
@@ -139,7 +150,62 @@ namespace Bloomdrawn.Content
                     ValidateReference(definition.Id, enemyId, ContentKind.Enemy, "enemy", byId, errors);
                 }
             }
+
+            if (definition.Kind == ContentKind.FixtureLineup)
+            {
+                ValidateFixtureLineupReferences(definition, byId, errors);
+            }
         }
+
+        private static void ValidateM1FixtureFields(ContentDefinition definition, ICollection<ContentValidationError> errors)
+        {
+            switch (definition.Kind)
+            {
+                case ContentKind.Character:
+                    if (!IsPositive(definition.MaxHp) || !IsNonNegative(definition.Attack) || !IsNonNegative(definition.Defense))
+                        errors.Add(new ContentValidationError("content.fixture-invalid-stats", "M1 fixture character requires positive Max HP and non-negative Attack/Defense."));
+                    break;
+                case ContentKind.Card:
+                    if (!IsNonNegative(definition.PrintedCost) || !IsOneOf(definition.TargetKind, "oneEnemy", "party") || !IsOneOf(definition.OperationKind, "strike", "shield"))
+                        errors.Add(new ContentValidationError("content.fixture-invalid-card", "M1 fixture card requires non-negative printed cost, supported target kind, and supported operation kind."));
+                    break;
+                case ContentKind.Enemy:
+                    if (!IsPositive(definition.MaxHp) || !IsOneOf(definition.InitialIntentKind, "attack") || !IsNonNegative(definition.InitialIntentDamage))
+                        errors.Add(new ContentValidationError("content.fixture-invalid-enemy", "M1 fixture enemy requires positive Max HP and attack initial intent data."));
+                    break;
+                case ContentKind.FixtureLineup:
+                    if (definition.CharacterIds == null || definition.CharacterIds.Count != 4 || definition.CharacterIds.Distinct(StringComparer.Ordinal).Count() != 4 || definition.DeckRecipe == null || definition.DeckRecipe.Count != 8)
+                        errors.Add(new ContentValidationError("content.fixture-invalid-lineup", "M1 fixture lineup requires exactly four unique characters and eight deck recipe entries."));
+                    break;
+            }
+        }
+
+        private static void ValidateFixtureLineupReferences(ContentDefinition definition, IReadOnlyDictionary<string, ContentDefinition> byId, ICollection<ContentValidationError> errors)
+        {
+            foreach (var characterId in definition.CharacterIds ?? Enumerable.Empty<string>())
+            {
+                ValidateReference(definition.Id, characterId, ContentKind.Character, "lineup character", byId, errors);
+            }
+
+            foreach (var cardId in definition.DeckRecipe ?? Enumerable.Empty<string>())
+            {
+                ValidateReference(definition.Id, cardId, ContentKind.Card, "deck card", byId, errors);
+                if (!string.IsNullOrWhiteSpace(cardId) && byId.TryGetValue(cardId, out var card) && card.Kind == ContentKind.Card &&
+                    !(definition.CharacterIds ?? new List<string>()).Contains(card.OwnerId))
+                {
+                    errors.Add(new ContentValidationError("content.fixture-invalid-deck-owner", string.Format("Lineup '{0}' deck card '{1}' owner is not in the lineup.", definition.Id, cardId)));
+                }
+            }
+        }
+
+        private static bool IsM1Fixture(ContentDefinition definition)
+        {
+            return definition.Id != null && definition.Id.StartsWith(M1FixturePrefix, StringComparison.Ordinal);
+        }
+
+        private static bool IsPositive(int? value) => value.HasValue && value.Value > 0;
+        private static bool IsNonNegative(int? value) => value.HasValue && value.Value >= 0;
+        private static bool IsOneOf(string value, params string[] allowed) => allowed.Contains(value, StringComparer.Ordinal);
 
         private static void ValidateReference(string ownerId, string referenceId, ContentKind expectedKind, string referenceName, IReadOnlyDictionary<string, ContentDefinition> byId, ICollection<ContentValidationError> errors)
         {

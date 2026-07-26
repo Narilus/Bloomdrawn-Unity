@@ -8,7 +8,8 @@ namespace Bloomdrawn.Content
         Character,
         Card,
         Enemy,
-        Encounter
+        Encounter,
+        FixtureLineup
     }
 
     /// <summary>
@@ -31,6 +32,26 @@ namespace Bloomdrawn.Content
         public string OwnerId { get; set; }
 
         public List<string> EnemyIds { get; set; } = new List<string>();
+
+        public int? MaxHp { get; set; }
+
+        public int? Attack { get; set; }
+
+        public int? Defense { get; set; }
+
+        public int? PrintedCost { get; set; }
+
+        public string TargetKind { get; set; }
+
+        public string OperationKind { get; set; }
+
+        public List<string> CharacterIds { get; set; } = new List<string>();
+
+        public List<string> DeckRecipe { get; set; } = new List<string>();
+
+        public string InitialIntentKind { get; set; }
+
+        public int? InitialIntentDamage { get; set; }
     }
 
     public enum ContentOrigin

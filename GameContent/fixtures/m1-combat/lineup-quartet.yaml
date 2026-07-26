@@ -1,0 +1,19 @@
+contentVersion: "0.1.0"
+id: fixture.m1.lineup.quartet
+kind: FixtureLineup
+displayName: Fixture Quartet
+presentationAssetId: presentation.ui.fixture-quartet
+characterIds:
+  - fixture.m1.character.alpha
+  - fixture.m1.character.beta
+  - fixture.m1.character.gamma
+  - fixture.m1.character.delta
+deckRecipe:
+  - fixture.m1.card.alpha-strike
+  - fixture.m1.card.alpha-shield
+  - fixture.m1.card.beta-strike
+  - fixture.m1.card.beta-shield
+  - fixture.m1.card.gamma-strike
+  - fixture.m1.card.gamma-shield
+  - fixture.m1.card.delta-strike
+  - fixture.m1.card.delta-shield

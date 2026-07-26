@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.alpha-strike
+kind: Card
+displayName: Fixture Alpha Strike
+presentationAssetId: presentation.card.fixture-alpha-strike
+ownerId: fixture.m1.character.alpha
+printedCost: 1
+targetKind: oneEnemy
+operationKind: strike

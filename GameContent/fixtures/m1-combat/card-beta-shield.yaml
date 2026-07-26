@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.beta-shield
+kind: Card
+displayName: Fixture Beta Shield
+presentationAssetId: presentation.card.fixture-beta-shield
+ownerId: fixture.m1.character.beta
+printedCost: 1
+targetKind: party
+operationKind: shield

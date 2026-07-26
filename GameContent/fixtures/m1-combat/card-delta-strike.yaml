@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.delta-strike
+kind: Card
+displayName: Fixture Delta Strike
+presentationAssetId: presentation.card.fixture-delta-strike
+ownerId: fixture.m1.character.delta
+printedCost: 1
+targetKind: oneEnemy
+operationKind: strike

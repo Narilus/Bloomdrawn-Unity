@@ -512,3 +512,69 @@ No production art or asset binding. The catalogue is typed and empty by default,
 ### Integration notes
 
 Commands are static Editor-only `[CliCommand]` handlers with structured response objects. `bloom.validate-content` fails on invalid input; command/Pipeline churn cannot affect the deterministic Engine.
+
+## 2026-07-26 - Task M1A: Fixture Party and Combat Setup
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` sections 4, 5, 6.3, 14, 15.4, and 16; DD-01, DD-13, DD-27, and DD-29
+**Plan/task file:** `plans/tasks/M1A-fixture-party-combat-setup.md`
+**Commit:** pending
+
+### Outcome
+
+Added an isolated, registry-derived M1 combat fixture: four party members, owner-specific Strike/Shield definitions, an exact-four lineup, one enemy/encounter, deterministic eight-card deck recipe, and an initial attack intent fact. The pure Content setup contracts derive stable participant and enemy IDs from authored setup identity; they create neither runtime cards/piles nor an intent lifecycle.
+
+### Files and assets changed
+
+- `GameContent/fixtures/m1-combat/` fixture-only character, card, lineup, enemy, and encounter YAML definitions.
+- Content definition, fingerprint, and validation extensions for the M1 fixture-combat family and its cross-reference/cardinality rules.
+- Pure `FixtureCombatSetup` contracts and registry-derived setup factory in `Bloomdrawn.Content`.
+- Focused Edit Mode fixture/setup validation coverage and Unity-generated `.meta` files for new C# sources.
+
+### Tests added or updated
+
+- Edit Mode `FixtureCombatSetupTests` cover valid exact-four setup, deterministic ID/deck/intent derivation, invalid owner/lineup/card diagnostics, production-origin rejection, and data-only stat changes.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| CLI/Pipeline discovery | pass | Confirmed `unity --help`, `unity test --help`, `unity command --help`, and live command discovery before invocation. |
+| Project validation | pass | `Tools\\validate.ps1` completed successfully. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\M1A-editmode.xml`: 23 passed, including 5 M1A tests. |
+| Play Mode tests | pass | `unity test . --mode PlayMode --output Logs\\M1A-playmode.xml`: 1 passed. |
+| CLI/Pipeline project health | pass | `bloom.validate-content` returned valid with 19 definitions; `bloom.health` reported Unity `6000.5.5f1`, not compiling, and a valid registry. |
+| Scene/layout/interaction validation | not required | M1A has no presentation or interaction scope. |
+| Build validation | not required | M1A changes pure content/setup only. |
+| Task-specific checks | pass | Fixture-only origin, invalid references, deck ownership, lineup cardinality, and stable setup IDs are covered by Edit Mode tests. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- Typed fixture setup remains in the pure Content assembly so it consumes the validated registry without creating an Engine-to-Content dependency before M1B.
+- The setup result carries authored deck recipe entries only; M1C owns runtime card-instance and pile state, and M1F owns enemy-intent lifecycle behavior.
+
+### Unity/project/package impact
+
+None. Existing assembly direction and package set are unchanged.
+
+### Save, schema, migration, and content-version impact
+
+Added fixture-only content fields under the existing YAML content policy. No production content, save payload, migration, replay, or persistence change was introduced.
+
+### Asset/provenance impact
+
+None. No presentation binding or production art asset was added.
+
+### Known follow-up
+
+- M1B consumes the setup result for pure combat phase state; M1C introduces runtime card instances and piles; M1F evolves only the initial intent fact into lifecycle behavior.
+
+### Integration notes
+
+All fixture data travels through the normal importer/validator/registry path. Stable runtime IDs encode lineup/encounter IDs plus authored ordering and never use Unity identities or object names.

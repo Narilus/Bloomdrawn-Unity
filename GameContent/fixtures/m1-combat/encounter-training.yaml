@@ -1,0 +1,7 @@
+contentVersion: "0.1.0"
+id: fixture.m1.encounter.training
+kind: Encounter
+displayName: Fixture Training Encounter
+presentationAssetId: presentation.encounter.fixture-training
+enemyIds:
+  - fixture.m1.enemy.training

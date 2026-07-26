@@ -1,0 +1,8 @@
+contentVersion: "0.1.0"
+id: fixture.m1.enemy.training
+kind: Enemy
+displayName: Fixture Training Enemy
+presentationAssetId: presentation.enemy.fixture-training
+maxHp: 72
+initialIntentKind: attack
+initialIntentDamage: 7

@@ -51,7 +51,17 @@ namespace Bloomdrawn.Content
                     item.DisplayName ?? string.Empty,
                     item.PresentationAssetId ?? string.Empty,
                     item.OwnerId ?? string.Empty,
-                    string.Join(",", (item.EnemyIds ?? new List<string>()).OrderBy(enemy => enemy, StringComparer.Ordinal))
+                    string.Join(",", (item.EnemyIds ?? new List<string>()).OrderBy(enemy => enemy, StringComparer.Ordinal)),
+                    item.MaxHp?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.Attack?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.Defense?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.PrintedCost?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.TargetKind ?? string.Empty,
+                    item.OperationKind ?? string.Empty,
+                    string.Join(",", item.CharacterIds ?? new List<string>()),
+                    string.Join(",", item.DeckRecipe ?? new List<string>()),
+                    item.InitialIntentKind ?? string.Empty,
+                    item.InitialIntentDamage?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty
                 }));
 
             using (var sha256 = SHA256.Create())

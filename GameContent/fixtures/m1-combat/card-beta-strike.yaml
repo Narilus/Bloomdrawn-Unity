@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.beta-strike
+kind: Card
+displayName: Fixture Beta Strike
+presentationAssetId: presentation.card.fixture-beta-strike
+ownerId: fixture.m1.character.beta
+printedCost: 1
+targetKind: oneEnemy
+operationKind: strike

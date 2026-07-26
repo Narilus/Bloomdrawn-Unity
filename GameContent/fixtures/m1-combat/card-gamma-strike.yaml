@@ -1,0 +1,9 @@
+contentVersion: "0.1.0"
+id: fixture.m1.card.gamma-strike
+kind: Card
+displayName: Fixture Gamma Strike
+presentationAssetId: presentation.card.fixture-gamma-strike
+ownerId: fixture.m1.character.gamma
+printedCost: 1
+targetKind: oneEnemy
+operationKind: strike
