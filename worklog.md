@@ -254,3 +254,65 @@ None. Logical presentation IDs are validated data only; no Unity asset binding o
 ### Integration notes
 
 Canonical hand-authored definitions are YAML by DD-13. Runtime registry creation accepts only `ValidatedContent`; validation must occur before generation/use.
+
+## 2026-07-26 - Task M0C: Deterministic RNG
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` deterministic-engine requirements; DD-27 and DD-30
+**Plan/task file:** `plans/tasks/M0C-deterministic-rng.md`
+**Commit:** pending
+
+### Outcome
+
+Added pure SplitMix64 RNG state, the nine approved authoritative named streams, stable profile/run/ID seed derivation, and an explicit rejected-fixture seam. The Engine remains serializer-library agnostic; the approved Newtonsoft JSON roundtrip is tested only in the Edit Mode application-facing boundary.
+
+### Files and assets changed
+
+- `Assets/Bloomdrawn/Engine/Rng/` deterministic state, stream registry, derivation, and rejection fixture.
+- `Assets/Bloomdrawn/Presentation/CosmeticRandom.cs` unsaved presentation-only randomness with no engine-state reference.
+- Edit Mode RNG tests and test-only Newtonsoft reference.
+- `plans/design-decisions.md` DD-30 serializer decision.
+
+### Tests added or updated
+
+- Same-seed sequence, stream isolation, cosmetic separation, rejected-command no-consumption, and Newtonsoft state continuation roundtrip.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Unity compile/import status | pass | Unity batch compilation succeeded. |
+| Edit Mode tests | pass | `Tools/validate.ps1`, including RNG contract tests. |
+| Play Mode tests | pass | Existing bootstrap smoke gate remained green. |
+| Task-specific checks | pass | Engine source contains no `UnityEngine`, `UnityEditor`, or `Newtonsoft` reference. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- DD-30, explicitly approved by the project owner, selects the already-installed Unity Newtonsoft JSON package for save-facing JSON only.
+- M0E persistence responsibilities were not implemented or moved into M0C.
+
+### Unity/project/package impact
+
+No package change. The existing Newtonsoft package is referenced only by the Edit Mode test assembly.
+
+### Save, schema, migration, and content-version impact
+
+RNG state is JSON-roundtrip compatible. No save envelope, schema version, repository, migration, checksum, or filesystem persistence was added.
+
+### Asset/provenance impact
+
+None.
+
+### Known follow-up
+
+- M0E owns save envelope and repository implementation using DD-30's selected JSON representation.
+
+### Integration notes
+
+Authoritative streams: `combat.shuffle`, `combat.targeting`, `enemy.intent`, `map.layout`, `map.content`, `map.nodeModifiers`, `reward`, `shop`, and `gacha`. `profile.equipment` remains intentionally absent.

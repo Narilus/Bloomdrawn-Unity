@@ -5,7 +5,8 @@
     "Bloomdrawn.Engine",
     "Bloomdrawn.Content",
     "Bloomdrawn.Application",
-    "Bloomdrawn.Content.Editor"
+    "Bloomdrawn.Content.Editor",
+    "Bloomdrawn.Presentation"
   ],
   "includePlatforms": [
     "Editor"
@@ -13,7 +14,9 @@
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
-  "precompiledReferences": [],
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ],
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],

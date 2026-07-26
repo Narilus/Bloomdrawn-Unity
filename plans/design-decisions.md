@@ -1804,6 +1804,56 @@ No gameplay save or migration impact. Replacing an asset may affect content/pres
 
 ---
 
+## DD-30 - Save-Facing JSON Serializer
+
+**Status:** approved  
+**Opened:** 2026-07-26  
+**Approved:** 2026-07-26
+**Required before:** M0C RNG serialization evidence and M0E persistence implementation
+**Owner/approver:** Project owner
+
+### Question
+
+Which JSON serializer represents Bloomdrawn save-facing data?
+
+### Context and Constraints
+
+M0C must prove authoritative RNG state can roundtrip through the serializer later used by M0E. The Engine must remain serializer-library agnostic; selecting JSON representation does not authorize M0E repository, envelope, checksum, migration, or filesystem work early.
+
+### Options Considered
+
+1. The already-installed Unity Newtonsoft JSON package.
+2. System.Text.Json.
+3. A new third-party serializer dependency.
+
+### Proposed Baseline
+
+Use the already-installed Unity Newtonsoft JSON package from application-facing serialization code and tests.
+
+### Approved Decision
+
+Option 1 is approved. `com.unity.nuget.newtonsoft-json` is Bloomdrawn's save-facing JSON serializer. Engine DTOs remain ordinary pure C# types without Newtonsoft attributes or serializer dependencies. M0E owns all persistence behavior beyond JSON representation.
+
+### Rationale
+
+The package is already installed by Unity and is available to Editor/application-facing code, avoiding an additional dependency while preserving the deterministic engine boundary.
+
+### Required Document Mirrors
+
+- `plans/tasks/M0C-deterministic-rng.md`: serializer roundtrip is executed outside the Engine.
+- M0E implementation/worklog: use the selected serializer for save-facing JSON while retaining M0E's assigned envelope/repository responsibilities.
+
+### Tests and Acceptance Evidence
+
+- M0C test serializes an authoritative RNG state with Newtonsoft JSON, deserializes it, and verifies identical subsequent output.
+- Engine source and asmdef remain free of Newtonsoft references.
+
+### Save/Migration/Content-Version Impact
+
+This selects JSON representation only. M0E defines save schema/version, envelope, checksum, validation, atomic write, fallback, and migrations.
+
+---
+
 ## Decision Entry Template
 
 ```markdown
