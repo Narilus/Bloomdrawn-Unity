@@ -30,7 +30,8 @@ namespace Bloomdrawn.Tests.EditMode
 
             Assert.That(result.IsAccepted, Is.True);
             Assert.That(result.State.Deck.Hand.Any(candidate => candidate.Id == card.Id), Is.False);
-            Assert.That(result.State.Deck.Resolving.Single().Id, Is.EqualTo(card.Id));
+            Assert.That(result.State.Deck.Resolving, Is.Empty);
+            Assert.That(result.State.Deck.Discard.Single().Id, Is.EqualTo(card.Id));
             Assert.That(result.State.Mana.Current, Is.EqualTo(5));
             Assert.That(result.Events.First().Kind, Is.EqualTo("combat.card-played"));
             Assert.That(result.Events.First().Facts["finalCost"], Is.EqualTo("1"));

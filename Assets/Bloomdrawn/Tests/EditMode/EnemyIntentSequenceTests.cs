@@ -26,10 +26,11 @@ namespace Bloomdrawn.Tests.EditMode
             Assert.That(first.IsAccepted, Is.True); Assert.That(first.State.Phase, Is.EqualTo(CombatPhase.EnemyAction));
             Assert.That(first.Events.First().Facts["slotIndex"], Is.EqualTo("0")); Assert.That(first.State.Values.Party.CurrentHp, Is.EqualTo(first.State.Values.Party.MaximumHp - 7));
             var second = CombatStateMachine.Apply(first.State, new CombatCommand(CombatCommandKind.AdvanceEnemyAction));
-            Assert.That(second.State.Phase, Is.EqualTo(CombatPhase.EnemyEnd));
+            Assert.That(second.State.Phase, Is.EqualTo(CombatPhase.PlayerAction));
             Assert.That(second.Events.First().Facts["slotIndex"], Is.EqualTo("1"));
-            Assert.That(second.Events.Last().Kind, Is.EqualTo("combat.enemy-intents-regenerated"));
+            Assert.That(second.Events.Select(item => item.Kind), Does.Contain("combat.enemy-intents-regenerated"));
             Assert.That(second.State.NextEnemySlotIndex, Is.EqualTo(0));
+            Assert.That(second.State.RoundNumber, Is.EqualTo(2));
         }
 
         [Test]

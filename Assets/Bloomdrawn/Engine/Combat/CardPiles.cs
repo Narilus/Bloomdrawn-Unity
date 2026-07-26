@@ -52,6 +52,18 @@ namespace Bloomdrawn.Engine.Combat
             From(from).Remove(card); From(to).Add(card);
             next = new CombatDeckState(draw, hand, discard, graveyard, resolving); return true;
         }
+        public static CombatDeckState CompleteResolvingToDiscard(CombatDeckState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            return new CombatDeckState(state.Draw, state.Hand, state.Discard.Concat(state.Resolving).ToList(), state.Graveyard, Array.Empty<CardInstance>());
+        }
+        public static CombatDeckState DiscardNonRetainedHand(CombatDeckState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            var retained = state.Hand.Where(card => (card.Tags & CardTags.Retain) != 0).ToList();
+            var discarded = state.Hand.Where(card => (card.Tags & CardTags.Retain) == 0).ToList();
+            return new CombatDeckState(state.Draw, retained, state.Discard.Concat(discarded).ToList(), state.Graveyard, state.Resolving);
+        }
         private static IReadOnlyList<CardInstance> Pile(CombatDeckState state, CardPile pile) => pile == CardPile.Draw ? state.Draw : pile == CardPile.Hand ? state.Hand : pile == CardPile.Discard ? state.Discard : pile == CardPile.Graveyard ? state.Graveyard : state.Resolving;
         private static CardTargetKind ParseTargetKind(string targetKind)
         {

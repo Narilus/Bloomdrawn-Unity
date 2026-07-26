@@ -924,3 +924,36 @@ Added the permanent M1 application-owned `CombatSession` path. Accepted engine e
 ### Known follow-up
 
 - M1J owns the golden replay fixture and the complete real-scene interaction/replay exit gate; M1I adds no M2 preview or future presentation system.
+
+## 2026-07-26 - M1J: Golden Combat Replay and Play Mode Interaction Gate
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§5–8, 15.1, 15.9, 16, and 17.2; DD-01, DD-27, DD-28; `plans/tasks/M1J-golden-replay-playmode-gate.md`
+**Commit:** pending
+
+### Outcome
+
+Restored the specified ordinary combat lifecycle: accepted cards finish from Resolving into Discard, cleanup discards non-Retain cards, EnemyEnd advances internally through RoundEnd to the next draw/refill PlayerAction, and authoritative named RNG state travels with CombatState for deterministic reshuffles. Added the registry-derived M1 golden replay seam, including complete accepted commands, semantic trace, named streams, checksum, and Atomic Stop evidence.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| focused M1J replay Edit Mode tests | pass: 2/2, exact trace/checksum and Atomic Stop evidence |
+| focused M1J Play Mode interaction gate | pass: 1/1, fan/drag/targeting/actor sequence at 16:9, 16:10, and ultrawide |
+| `Tools\\validate.ps1` | pass, including complete Edit and Play Mode suites |
+| `unity test . --mode EditMode --output Logs\\M1J-EditMode-results.xml` | pass |
+| `unity test . --mode PlayMode --output Logs\\M1J-PlayMode-results.xml` | pass |
+| `Tools\\build-smoke.ps1` | pass: `Builds\\Smoke\\Bloomdrawn.exe` |
+
+### Contract evidence
+
+- The replay starts from fixture-origin registry content and fixed named RNG streams; replaying its complete recorded command list reaches the same Victory state, event trace, and SHA-256 checksum.
+- The terminal victory event immediately follows its killing damage event and is final in the trace, proving DD-01 Atomic Stop.
+- Play Mode coverage verifies repeated drag/cancel recovery, arm/disarm cancellation, target-confirm/cancel and rejection resync, actor hit routing, and usable fan positions across all required aspect ratios.
+- No save migration, production content, Domain system, preview evaluator, run/meta system, or production ID branch was introduced.
+
+### Cross-plan audit
+
+- M1A/M1F intent ownership remains disjoint; M1C owns piles; M1G supplies independent actors; M1I remains presentation-only. The missing turn lifecycle was repaired from the existing DESIGN contract rather than by selecting a new rule.

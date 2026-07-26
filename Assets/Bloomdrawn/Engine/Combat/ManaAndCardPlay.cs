@@ -86,7 +86,8 @@ namespace Bloomdrawn.Engine.Combat
             var gameEvent = new GameEvent(state.NextEventSequence, "combat.card-played", card.OwnerId.Value, targetId, eventFacts);
             var next = CombatStateMachine.WithCardPlayState(state, nextDeck, state.Mana.Spend(finalCost), state.NextEventSequence + 1);
             var resolution = CombatEffectResolver.ResolveCard(next, card, command.Target.EnemyId);
-            return CommandResult<CombatState>.Accepted(resolution.State, new[] { gameEvent }.Concat(resolution.Events).ToList());
+            var completed = CombatStateMachine.WithCardPlayState(resolution.State, CombatDecks.CompleteResolvingToDiscard(resolution.State.Deck), resolution.State.Mana, resolution.State.NextEventSequence);
+            return CommandResult<CombatState>.Accepted(completed, new[] { gameEvent }.Concat(resolution.Events).ToList());
         }
 
         private static bool HasValidTarget(CombatState state, CardInstance card, CardTargetChoice target, out string targetId, out RejectionDiagnostic error)

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Bloomdrawn.Content;
 using Bloomdrawn.Engine.Commands;
+using Bloomdrawn.Engine.Rng;
 
 namespace Bloomdrawn.Engine.Combat
 {
@@ -37,7 +38,7 @@ namespace Bloomdrawn.Engine.Combat
 
     public sealed class CombatState
     {
-        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null, CombatValues values = null, IReadOnlyList<EnemySlot> enemySlots = null, int nextEnemySlotIndex = 0)
+        internal CombatState(CombatSetupResult setup, CombatPhase phase, int roundNumber, long nextEventSequence, CombatDeckState deck = null, ManaState mana = null, CombatValues values = null, IReadOnlyList<EnemySlot> enemySlots = null, int nextEnemySlotIndex = 0, AuthoritativeRngState rng = null)
         {
             Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             Phase = phase;
@@ -48,6 +49,7 @@ namespace Bloomdrawn.Engine.Combat
             Values = values ?? CombatValues.Create(setup);
             EnemySlots = enemySlots ?? global::Bloomdrawn.Engine.Combat.EnemySlots.Create(setup);
             NextEnemySlotIndex = nextEnemySlotIndex;
+            Rng = rng ?? AuthoritativeRngState.Create(0, 0);
         }
 
         public CombatSetupResult Setup { get; }
@@ -59,6 +61,7 @@ namespace Bloomdrawn.Engine.Combat
         public CombatValues Values { get; }
         public IReadOnlyList<EnemySlot> EnemySlots { get; }
         public int NextEnemySlotIndex { get; }
+        public AuthoritativeRngState Rng { get; }
         public bool IsTerminal => Phase == CombatPhase.Victory || Phase == CombatPhase.Defeat;
 
         public string CanonicalForm()
@@ -74,6 +77,8 @@ namespace Bloomdrawn.Engine.Combat
                 string.Join(",", Deck.Draw.Select(card => card.Id)),
                 string.Join(",", Deck.Hand.Select(card => card.Id)),
                 string.Join(",", Deck.Resolving.Select(card => card.Id)),
+                string.Join(",", Deck.Discard.Select(card => card.Id)),
+                string.Join(",", Rng.Streams.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => pair.Key + ":" + pair.Value.State.ToString(CultureInfo.InvariantCulture))),
                 Values.CanonicalForm(),
                 string.Join(",", EnemySlots.Select(slot => slot.SlotIndex.ToString(CultureInfo.InvariantCulture) + ":" + slot.Intent.Kind + ":" + slot.Intent.Damage.ToString(CultureInfo.InvariantCulture))),
                 NextEnemySlotIndex.ToString(CultureInfo.InvariantCulture)
@@ -106,10 +111,10 @@ namespace Bloomdrawn.Engine.Combat
 
     public static class CombatStateMachine
     {
-        public static CombatState Create(CombatSetupResult setup)
+        public static CombatState Create(CombatSetupResult setup, AuthoritativeRngState rng = null)
         {
             if (setup == null) throw new ArgumentNullException(nameof(setup));
-            return new CombatState(setup, CombatPhase.CombatSetup, 0, 0);
+            return new CombatState(setup, CombatPhase.CombatSetup, 0, 0, rng: rng);
         }
 
         public static CommandResult<CombatState> Apply(CombatState state, CombatCommand command)
@@ -150,7 +155,7 @@ namespace Bloomdrawn.Engine.Combat
         {
             var transitions = new List<GameEvent>();
             var playerTurnStart = Advance(state, CombatPhase.PlayerTurnStart, transitions);
-            var openedDeck = DrawOpeningHand(playerTurnStart.Deck);
+            CombatDecks.TryDrawToTarget(playerTurnStart.Deck, playerTurnStart.Rng, out var openedDeck);
             var playerAction = Advance(playerTurnStart, CombatPhase.PlayerAction, transitions, openedDeck, ManaState.Full());
             return CommandResult<CombatState>.Accepted(playerAction, transitions);
         }
@@ -158,28 +163,31 @@ namespace Bloomdrawn.Engine.Combat
         private static CommandResult<CombatState> AdvanceToEnemyPhaseStart(CombatState state)
         {
             var transitions = new List<GameEvent>();
-            var cleanup = Advance(state, CombatPhase.PlayerCleanup, transitions);
+            var cleanupDeck = CombatDecks.DiscardNonRetainedHand(state.Deck);
+            var cleanup = Advance(state, CombatPhase.PlayerCleanup, transitions, cleanupDeck);
             var playerEnd = Advance(cleanup, CombatPhase.PlayerEnd, transitions);
             var enemyPhaseStart = Advance(playerEnd, CombatPhase.EnemyPhaseStart, transitions);
             return CommandResult<CombatState>.Accepted(enemyPhaseStart, transitions);
         }
 
-        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence, CombatValues values = null, CombatPhase? phase = null, IReadOnlyList<EnemySlot> enemySlots = null, int? nextEnemySlotIndex = null)
+        public static CombatState WithCardPlayState(CombatState current, CombatDeckState deck, ManaState mana, long nextEventSequence, CombatValues values = null, CombatPhase? phase = null, IReadOnlyList<EnemySlot> enemySlots = null, int? nextEnemySlotIndex = null, AuthoritativeRngState rng = null)
         {
             if (current == null) throw new ArgumentNullException(nameof(current));
             if (deck == null) throw new ArgumentNullException(nameof(deck));
             if (mana == null) throw new ArgumentNullException(nameof(mana));
-            return new CombatState(current.Setup, phase ?? current.Phase, current.RoundNumber, nextEventSequence, deck, mana, values ?? current.Values, enemySlots ?? current.EnemySlots, nextEnemySlotIndex ?? current.NextEnemySlotIndex);
+            return new CombatState(current.Setup, phase ?? current.Phase, current.RoundNumber, nextEventSequence, deck, mana, values ?? current.Values, enemySlots ?? current.EnemySlots, nextEnemySlotIndex ?? current.NextEnemySlotIndex, rng ?? current.Rng);
         }
 
-        private static CombatDeckState DrawOpeningHand(CombatDeckState deck)
+        public static CommandResult<CombatState> AdvanceFromEnemyEnd(CombatState state, ICollection<GameEvent> priorEvents)
         {
-            var state = deck;
-            for (var index = 0; index < CombatDecks.HandTarget && state.Draw.Count > 0; ++index)
-            {
-                CombatDecks.TryMove(state, state.Draw[0].Id, CardPile.Draw, CardPile.Hand, out state);
-            }
-            return state;
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (state.Phase != CombatPhase.EnemyEnd) throw new InvalidOperationException("Only EnemyEnd may internally advance to the next ordinary player turn.");
+            var events = priorEvents == null ? new List<GameEvent>() : priorEvents.ToList();
+            var roundEnd = Advance(state, CombatPhase.RoundEnd, events);
+            var playerStart = Advance(roundEnd, CombatPhase.PlayerTurnStart, events, mana: ManaState.Full());
+            CombatDecks.TryDrawToTarget(playerStart.Deck, playerStart.Rng, out var drawnDeck);
+            var playerAction = Advance(playerStart, CombatPhase.PlayerAction, events, drawnDeck, ManaState.Full());
+            return CommandResult<CombatState>.Accepted(playerAction, events);
         }
 
         private static CombatState Advance(CombatState current, CombatPhase nextPhase, ICollection<GameEvent> events, CombatDeckState deck = null, ManaState mana = null)
@@ -194,7 +202,7 @@ namespace Bloomdrawn.Engine.Combat
                 { "to", nextPhase.ToString() },
                 { "round", nextRound.ToString(CultureInfo.InvariantCulture) }
             }));
-            return new CombatState(current.Setup, nextPhase, nextRound, current.NextEventSequence + 1, deck ?? current.Deck, mana ?? current.Mana);
+            return new CombatState(current.Setup, nextPhase, nextRound, current.NextEventSequence + 1, deck ?? current.Deck, mana ?? current.Mana, current.Values, current.EnemySlots, current.NextEnemySlotIndex, current.Rng);
         }
 
         private static CommandResult<CombatState> RejectIllegalPhase(CombatState state, CombatCommandKind commandKind)

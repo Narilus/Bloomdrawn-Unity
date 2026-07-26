@@ -60,7 +60,7 @@ namespace Bloomdrawn.Engine.Combat
             var regenerated = state.EnemySlots.Select(slot => new EnemySlot(slot.SlotIndex, slot.EnemyId, new VisibleEnemyIntent(slot.Intent.Kind, slot.Intent.Damage))).ToList();
             events.Add(new GameEvent(state.NextEventSequence, "combat.enemy-intents-regenerated", facts: new Dictionary<string, string> { { "sequenceBoundary", "enemy-end" }, { "slotCount", regenerated.Count.ToString(CultureInfo.InvariantCulture) } }));
             var end = CombatStateMachine.WithCardPlayState(state, state.Deck, state.Mana, state.NextEventSequence + 1, phase: CombatPhase.EnemyEnd, enemySlots: regenerated, nextEnemySlotIndex: 0);
-            return CommandResult<CombatState>.Accepted(end, events.ToList());
+            return CombatStateMachine.AdvanceFromEnemyEnd(end, events);
         }
         private static CommandResult<CombatState> Reject(CombatState state, string code, string message) => CommandResult<CombatState>.Rejected(state, new RejectionDiagnostic(code, message));
     }
