@@ -3,6 +3,7 @@
   "rootNamespace": "Bloomdrawn.Editor",
   "references": [
     "Bloomdrawn.Application",
+    "Bloomdrawn.Engine",
     "Bloomdrawn.Presentation",
     "Bloomdrawn.Content",
     "Bloomdrawn.Content.Editor",

@@ -2,7 +2,8 @@
   "name": "Bloomdrawn.Tests.PlayMode",
   "rootNamespace": "Bloomdrawn.Tests.PlayMode",
   "references": [
-    "Bloomdrawn.Presentation"
+    "Bloomdrawn.Presentation",
+    "Bloomdrawn.Application"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

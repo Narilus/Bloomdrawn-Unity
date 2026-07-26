@@ -890,3 +890,37 @@ Added presentation-only deterministic hand fan geometry and a single-session car
 ### Known follow-up
 
 - M1I owns the authoritative session adapter and maps accepted engine events to ordered presentation tokens.
+
+## 2026-07-26 - M1I: Initial Sequential Presentation Adapter
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§15.1, 15.5, and 15.9; DD-27–DD-29; `plans/tasks/M1I-sequential-presentation-adapter.md`
+**Commit:** pending
+
+### Outcome
+
+Added the permanent M1 application-owned `CombatSession` path. Accepted engine events map in sequence to immutable presentation tokens, lock input until explicit ordered completion, and leave authoritative state/event history unchanged during playback. The combat stage now binds its independent actor roots from setup-derived runtime IDs and uses generic fallback act, acknowledgement, hit, Shield, victory, and defeat reactions with reduced-motion and speed hooks.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| focused M1I Edit Mode tests | pass: 4/4, including command invalid-precondition failure |
+| focused M1I Play Mode test | pass: 1/1 |
+| `Tools\\validate.ps1` | pass, including Edit and Play Mode suites |
+| `unity test . --mode EditMode --output Logs\\M1I-EditMode-results.xml` | pass |
+| `unity test . --mode PlayMode --output Logs\\M1I-PlayMode-results.xml` | pass |
+| automated `bloom.health` | pass: Pipeline/editor ready, compilation idle/successful, registry valid (19 definitions) |
+| `bloom.load-combat-fixture`, `bloom.dump-combat-state`, `bloom.validate-combat-layout`, `bloom.reset-combat-fixture` | pass: registry-derived setup, unchanged dump/reset state, 4 party + 1 enemy independent actor bindings |
+
+### Contract evidence
+
+- The Application session owns state submission and accepted-event history; Presentation receives facts/IDs only and cannot resolve or alter combat rules.
+- Tokens preserve accepted event sequence and use setup-derived runtime IDs for actor lookup. Completion is explicit and input is locked only while accepted tokens remain pending.
+- The fixture commands are Editor-only Pipeline diagnostics, have structured output, and reject an unloaded-session precondition without hidden initialization.
+- Presentation components are in one-MonoBehaviour-per-file Unity script assets so serialized CombatStage references survive scene reloads.
+
+### Known follow-up
+
+- M1J owns the golden replay fixture and the complete real-scene interaction/replay exit gate; M1I adds no M2 preview or future presentation system.
