@@ -828,3 +828,34 @@ Converted M1A’s fixture initial intent into immutable M1 runtime slot/intent s
 ### Known follow-up
 
 - M1G supplies independent actor layout; M1I maps this ordered semantic event stream to presentation tokens.
+
+## 2026-07-26 - M1G: Combat Stage and Independent Actor Views
+
+**Status:** complete
+**Integrator:** Narilus
+**Design references:** `docs/DESIGN.md` §§8.3–8.10, 15.2, 15.5, and 15.9; DD-26–DD-29; `plans/tasks/M1G-combat-stage-independent-actors.md`
+**Commit:** pending
+
+### Outcome
+
+Created the dedicated `CombatStage` scene through project-owned Editor authoring. It has one screen-space uGUI combat Canvas, independent generic party/enemy formations and actor roots, stable presentation-only runtime binding IDs, separate visual/target/selection/status/VFX/intent anchors, and explicit safe-zone containers.
+
+### Validation performed
+
+| Command/check | Result |
+|---|---|
+| `Tools\\validate.ps1` | pass, including Edit and Play Mode suites |
+| M1G Edit/Play Mode commands | pass |
+| scene hierarchy/Pipeline summary | pass: `CombatStage`, two roots, saved cleanly |
+| automated `bloom.health` | pass: Pipeline/editor ready, compile idle/successful, registry valid (19 definitions) |
+
+### Layout evidence
+
+- Canvas uses `ScaleWithScreenSize`, `1920 x 1080`, and `0.5` width/height match.
+- Four party actor roots and one enemy actor root are independently addressable; no composite actor root exists.
+- Every actor owns visual, target, selection, status, VFX, and intent anchors.
+- Tests assert safe-zone separation for shared survival, hand, enemy target lane, End Turn, and a collapsed/overlay combat log at 16:9, 16:10, and ultrawide reference ratios.
+
+### Known follow-up
+
+- M1H adds card fan/drag/target interaction using the declared Hand Safe Area; M1I supplies runtime token playback and fixture bindings.
