@@ -316,3 +316,65 @@ None.
 ### Integration notes
 
 Authoritative streams: `combat.shuffle`, `combat.targeting`, `enemy.intent`, `map.layout`, `map.content`, `map.nodeModifiers`, `reward`, `shop`, and `gacha`. `profile.equipment` remains intentionally absent.
+
+## 2026-07-26 - Task M0D: Engine Command/Event Protocol
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` deterministic-engine/event-separation requirements; DD-27
+**Plan/task file:** `plans/tasks/M0D-engine-command-event-protocol.md`
+**Commit:** pending
+
+### Outcome
+
+Added pure reusable command-result, structured rejection-diagnostic, and ordered semantic-event contracts. A fixture-only fixed-seed smoke command advances minimal state on acceptance, returns the same state on rejection, and replays through a canonical golden fixture containing initial state, commands, expected events, and a SHA-256 checksum.
+
+### Files and assets changed
+
+- `Assets/Bloomdrawn/Engine/Commands/` pure command protocol, smoke fixture, and golden fixture runner.
+- `Assets/Bloomdrawn/Tests/EditMode/CommandProtocolTests.cs` acceptance, rejection, ordered-event, fixed-seed replay, and checksum tests.
+
+### Tests added or updated
+
+- Accepted commands change state and emit explicit sequence-ordered semantic events.
+- Rejected commands retain the original state and return a structured diagnostic with no events.
+- Repeated fixed-seed golden replay verifies identical final state, event forms, and checksum without presentation inputs.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Unity compile/import status | pass | Unity batch compilation succeeded. |
+| Project validation | pass | `Tools/validate.ps1` passed Edit Mode and Play Mode gates. |
+| Edit Mode tests | pass | Installed CLI equivalent: `unity test . --mode EditMode --output Logs\\M0D-EditMode-results.xml`. |
+| Task-specific checks | pass | Protocol source has no Unity, presentation, or serializer dependency. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- The task-plan command's `--project-path` option is unsupported by the installed Unity CLI; the documented supported positional project argument was used instead.
+- The fixture seed is stable test data only; no RNG semantics or production gameplay rule was introduced.
+
+### Unity/project/package impact
+
+No package or Unity-project configuration change.
+
+### Save, schema, migration, and content-version impact
+
+No production gameplay content schema, save migration, or persistence behavior was added.
+
+### Asset/provenance impact
+
+None.
+
+### Known follow-up
+
+- Later engine systems may use these generic contracts; M0D intentionally adds no command bus or gameplay rules.
+
+### Integration notes
+
+Event order is represented by explicit sequence values and the golden checksum uses canonical state/event data, never frame, render, scene, or presentation state.
