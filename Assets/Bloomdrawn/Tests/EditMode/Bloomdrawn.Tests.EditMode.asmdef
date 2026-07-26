@@ -4,7 +4,8 @@
   "references": [
     "Bloomdrawn.Engine",
     "Bloomdrawn.Content",
-    "Bloomdrawn.Application"
+    "Bloomdrawn.Application",
+    "Bloomdrawn.Content.Editor"
   ],
   "includePlatforms": [
     "Editor"

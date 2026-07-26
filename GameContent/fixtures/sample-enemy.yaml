@@ -1,0 +1,5 @@
+contentVersion: "0.1.0"
+id: sample.enemy.gloom
+kind: Enemy
+displayName: Sample Gloom
+presentationAssetId: presentation.enemy.sample-gloom

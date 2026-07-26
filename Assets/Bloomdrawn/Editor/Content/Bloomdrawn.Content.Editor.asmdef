@@ -1,0 +1,20 @@
+{
+  "name": "Bloomdrawn.Content.Editor",
+  "rootNamespace": "Bloomdrawn.Content.Editor",
+  "references": [
+    "Bloomdrawn.Content"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [
+    "YamlDotNet.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

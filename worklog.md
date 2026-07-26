@@ -181,3 +181,76 @@ None. No production or generated content asset was added.
 ### Integration notes
 
 Run `Tools/validate.ps1` and `Tools/build-smoke.ps1` with the Unity project closed for batch validation. Use installed `unity --help` as the authoritative CLI syntax source.
+
+## 2026-07-26 - Task M0B: Content Schema and Unity Import Foundation
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` section 23; DD-13 and DD-29
+**Plan/task file:** `plans/tasks/M0B-content-schema-unity-import.md`
+**Commit:** pending
+
+### Outcome
+
+Established versioned, stable-ID content DTOs, explicit validation, deterministic registry ordering/hash generation, isolated sample YAML fixtures, and reproducible JSON registry output. YAML parsing is provided by YamlDotNet 18.1.0 in an Editor-only plugin/import assembly; player and deterministic assemblies never parse YAML.
+
+### Files and assets changed
+
+- `Assets/Bloomdrawn/Content/` pure DTO, validator, registry, and fingerprint contracts.
+- `Assets/Bloomdrawn/Editor/Content/` Editor-only YAML/JSON import service and asmdef.
+- `Assets/Plugins/Bloomdrawn/Editor/YamlDotNet/` YamlDotNet 18.1.0 netstandard2.0 binary and Unity metadata.
+- `GameContent/` canonical production/fixture/generated locations and four isolated sample fixture records.
+- `Assets/Bloomdrawn/Tests/EditMode/ContentImportTests.cs` and the Edit Mode assembly reference.
+- `ThirdPartyNotices/YamlDotNet-NOTICE.md`.
+
+### Tests added or updated
+
+- Valid fixture YAML import, deterministic registry construction, and generated JSON roundtrip.
+- Duplicate stable ID, missing version/display field, invalid cross-reference, and invalid logical presentation-reference rejection.
+- Repeated canonical import hash/order equality.
+- Empty production source and invalid unvalidated production data rejection.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Unity compile/import status | pass | M0B assemblies imported without Unity console errors. |
+| Edit Mode tests | pass | `Tools/validate.ps1` includes M0B content/import tests. |
+| Play Mode tests | pass | Existing M0A bootstrap smoke remains green through the project gate. |
+| CLI/Pipeline project health | pass | M0A-installed Pipeline remains available when Editor is open; M0F owns `bloom.validate-content`. |
+| Scene/layout/interaction validation | not required | M0B is pure content/tooling work. |
+| Build validation | not required | M0A smoke build remains the scoped build gate; M0B changed no Player code path. |
+| Task-specific checks | pass | Pure content sources contain no Unity/YAML/JSON importer dependency; parser is Editor-only. |
+
+### Skipped or unavailable validation
+
+`bloom.validate-content` is intentionally unavailable until M0F implements the project command. The direct importer is fully covered by Edit Mode tests and `Tools/validate.ps1`.
+
+### Decisions, assumptions, and deviations
+
+- Pinned YamlDotNet 18.1.0 (MIT, netstandard2.0) after checking its current NuGet package target and license; retained its notice in `ThirdPartyNotices/`.
+- JSON output uses the existing Unity Newtonsoft JSON package from Editor-only code.
+- Sample records use only `sample.*` fixture IDs and do not represent production content.
+
+### Unity/project/package impact
+
+- Added an Editor-only precompiled YamlDotNet plugin and `Bloomdrawn.Content.Editor` assembly.
+- No player/runtime assembly references YamlDotNet or gains YAML parsing.
+
+### Save, schema, migration, and content-version impact
+
+- Introduced the M0 content DTO/version/hash contract only; no save schema/version or migration.
+- Generated JSON remains derivative and is not a canonical gameplay source.
+
+### Asset/provenance impact
+
+None. Logical presentation IDs are validated data only; no Unity asset binding or production/generated art was added.
+
+### Known follow-up
+
+- M0F exposes validation through `bloom.validate-content`; M2A owns production content authoring.
+
+### Integration notes
+
+Canonical hand-authored definitions are YAML by DD-13. Runtime registry creation accepts only `ValidatedContent`; validation must occur before generation/use.

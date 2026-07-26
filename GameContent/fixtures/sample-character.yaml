@@ -1,0 +1,5 @@
+contentVersion: "0.1.0"
+id: sample.character.sprout
+kind: Character
+displayName: Sample Sprout
+presentationAssetId: presentation.character.sample-sprout

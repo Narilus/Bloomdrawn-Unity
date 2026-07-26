@@ -1,0 +1,6 @@
+contentVersion: "0.1.0"
+id: sample.card.petal
+kind: Card
+displayName: Sample Petal
+presentationAssetId: presentation.card.sample-petal
+ownerId: sample.character.sprout
