@@ -6,7 +6,8 @@
     "Bloomdrawn.Content",
     "Bloomdrawn.Application",
     "Bloomdrawn.Content.Editor",
-    "Bloomdrawn.Presentation"
+    "Bloomdrawn.Presentation",
+    "Bloomdrawn.Editor"
   ],
   "includePlatforms": [
     "Editor"

@@ -3,7 +3,11 @@
   "rootNamespace": "Bloomdrawn.Editor",
   "references": [
     "Bloomdrawn.Application",
-    "Bloomdrawn.Presentation"
+    "Bloomdrawn.Presentation",
+    "Bloomdrawn.Content",
+    "Bloomdrawn.Content.Editor",
+    "Unity.Pipeline",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [
     "Editor"

@@ -444,3 +444,71 @@ None.
 ### Integration notes
 
 Consumers depend on `IProfileRepository`/`IRunRepository`; local storage uses an injected root path for tests and atomic replacement with a recoverable `.previous` snapshot for runtime use.
+
+## 2026-07-26 - Task M0F: Bootstrap Scene and Agent/Editor Tooling
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` sections 15.2 and 15.7; DD-27 and DD-29
+**Plan/task file:** `plans/tasks/M0F-bootstrap-scene-editor-tooling.md`
+**Commit:** pending
+
+### Outcome
+
+Converted the existing `SampleScene` into the intentionally minimal M0 developer shell: a uGUI Canvas with content-validation/developer-status text and a reduced-motion seed toggle. Added Editor-only Pipeline commands `bloom.health`, `bloom.validate-content`, and `bloom.scene-summary`, plus a typed presentation asset catalogue and validation contract.
+
+### Files and assets changed
+
+- `Assets/Scenes/SampleScene.unity` bootstrap developer shell authored through `BootstrapSceneAuthoring`, with an Input System-compatible EventSystem.
+- `Assets/Bloomdrawn/Presentation/` bootstrap shell and typed logical presentation asset catalogue.
+- `Assets/Bloomdrawn/Editor/Tooling/` Pipeline command handlers, scene authoring routine, and catalogue validator.
+- M0 content DTO flag for current-milestone-required presentation bindings; no production content is marked required or authored.
+- Edit and Play Mode coverage for tooling/catalogue and bootstrap scene behavior.
+
+### Tests added or updated
+
+- Health/content commands report valid fixture registry state; controlled invalid YAML causes the content command to fail.
+- Catalogue validator detects duplicate IDs, logical-role mismatch, wrong Unity asset type, and unresolved required binding.
+- Bootstrap scene loads in Play Mode, exposes its shell, and toggles its reduced-motion seed state.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| CLI/Pipeline discovery | pass | `unity --help`, `unity pipeline list`, `unity command --help`, and live command discovery verified Pipeline `0.4.0-exp.1`. |
+| Project validation | pass | `Tools/validate.ps1` passed Edit Mode and Play Mode gates. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\M0F-EditMode-results.xml`. |
+| Play Mode tests | pass | `unity test . --mode PlayMode --output Logs\\M0F-PlayMode-results.xml`. |
+| Pipeline commands | pass | Live `bloom.health`, `bloom.validate-content`, and `bloom.scene-summary` calls returned structured success; health reported Unity `6000.5.5f1`, valid registry, and four fixture definitions. |
+| Bootstrap scene inspection | pass | Pipeline opened `Assets/Scenes/SampleScene.unity`; scene summary returned four roots and `IsDirty: false`. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- The existing `SampleScene` is retained as the bootstrap scene rather than creating a second empty scene.
+- Pipeline is used only in the Editor assembly and is absent from the runtime presentation/application/engine assembly graph.
+- The bootstrap shell uses the project’s configured Input System UI module; no M1 card/input behavior was added.
+
+### Unity/project/package impact
+
+No package addition or upgrade. The already-installed Pipeline package remains an Editor development surface; no runtime Pipeline manager/component is added to the scene or Player configuration.
+
+### Save, schema, migration, and content-version impact
+
+Added only an opt-in current-milestone presentation-binding requirement flag to the content DTO. No production content, save data, migrations, or persistence behavior was introduced.
+
+### Asset/provenance impact
+
+No production art or asset binding. The catalogue is typed and empty by default, ready for later logical bindings without modifying deterministic content.
+
+### Known follow-up
+
+- M1 owns combat actors, cards, input gestures, production presentation bindings, and event presentation sequencing.
+
+### Integration notes
+
+Commands are static Editor-only `[CliCommand]` handlers with structured response objects. `bloom.validate-content` fails on invalid input; command/Pipeline churn cannot affect the deterministic Engine.

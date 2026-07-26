@@ -26,6 +26,8 @@ namespace Bloomdrawn.Content
 
         public string PresentationAssetId { get; set; }
 
+        public bool RequiresPresentationBindingForCurrentMilestone { get; set; }
+
         public string OwnerId { get; set; }
 
         public List<string> EnemyIds { get; set; } = new List<string>();
