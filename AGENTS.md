@@ -85,6 +85,34 @@ bloom.validate-combat-layout
 
 Do not claim a Unity change works solely because a file write succeeded. Verify that Unity imported/compiled it and that the relevant Editor/test/runtime behavior is correct.
 
+
+### 4.1 Agent-controlled Editor launch is automated-only
+
+Any Unity Editor instance used for **agent-controlled** Pipeline access, live Editor inspection, Play Mode interaction, scene/prefab authoring, or runtime validation must be launched with the project-required `-automated` Editor argument.
+
+This is a hard operational requirement for agent interactivity with the Editor.
+
+- Unity Hub project launch arguments do not automatically protect direct Editor or CLI launches. Never assume `-automated` is present merely because it is configured in Hub.
+- Use `Tools/open-automated-editor.ps1` for agent-controlled Editor launches once that wrapper is present. Do not launch `Unity.exe` directly for agent work.
+- Do not use `unity open` for agent-controlled Editor launch unless the installed CLI help explicitly proves a supported way to forward the required `-automated` Editor argument. Otherwise use the repository wrapper.
+- `-batchmode` is not a substitute for the interactive automation-capable Editor used by Pipeline/live agent workflows.
+- Before using Pipeline or live Editor control, verify the exact project path, pinned Unity version, Editor process, and presence of `-automated`. `Tools/get-unity-editor-state.ps1 -RequireAutomated` is the repository-level process check once available.
+- If the target project is already open in an Editor that lacks `-automated`, do not attach agent-driven Editor control to that process. Do not silently terminate or restart a user-owned Editor. Report the condition and stop unless the user explicitly authorizes the required restart.
+- Human/manual Editor sessions may omit `-automated`; this rule applies specifically to an Editor instance used by the implementation agent.
+- A task may not claim successful live Editor, Play Mode, scene, prefab, layout, or interaction validation when the required automation-capable Editor instance was unavailable.
+
+Editor readiness and compilation state must be reported unambiguously. Prefer structured fields such as `editorReady=true`, `compilation.active=false`, and `compileErrors=0` (or equivalent explicit wording). Do not summarize `compilation.active=false` as the ambiguous phrase “not compiling” without separately reporting whether compile errors exist.
+
+### 4.2 Bounded waiting and progress reporting
+
+Waiting for Unity startup, import, compilation, domain reload, test execution, or Pipeline connection must use bounded polling with a task-appropriate timeout.
+
+- Poll internally; do not emit repeated unchanged chat/status messages such as “M1D remains active.”
+- Report meaningful state changes, the final successful state, or a concrete timeout/failure.
+- A retry must be tied to observable evidence such as process appearance, Pipeline connection, compilation transition, test completion, or command exit status.
+- If the timeout expires or repeated checks provide no actionable progress, diagnose the last observed state and stop with the concrete blocker rather than continuing an unproductive loop.
+- Never treat repeated status output as progress or as a substitute for repository/tool evidence.
+
 ## 5. Prefer safe Unity authoring paths
 
 Prefer, in order when practical:

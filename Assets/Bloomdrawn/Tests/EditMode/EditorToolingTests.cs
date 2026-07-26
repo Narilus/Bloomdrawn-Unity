@@ -18,6 +18,11 @@ namespace Bloomdrawn.Tests.EditMode
             var validation = BloomdrawnEditorCommands.ValidateContent();
 
             Assert.That(health.EditorVersion, Is.Not.Empty);
+            Assert.That(health.PipelineReady, Is.True);
+            Assert.That(health.EditorReady, Is.True);
+            Assert.That(health.CompilationActive, Is.False);
+            Assert.That(health.CompileFailed, Is.False);
+            Assert.That(health.CompileSucceeded, Is.True);
             Assert.That(health.RegistryValid, Is.True);
             Assert.That(health.DefinitionCount, Is.GreaterThan(0));
             Assert.That(validation.Valid, Is.True);

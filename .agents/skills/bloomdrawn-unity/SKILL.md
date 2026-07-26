@@ -36,6 +36,49 @@ The Unity CLI/Pipeline surface is experimental and can change independently of t
 
 Read `references/unity-cli-pipeline.md` when using CLI/Pipeline or creating agent-facing Editor commands.
 
+
+## Launch and verify an automation-capable Editor
+
+Bloomdrawn requires `-automated` on any Unity Editor instance that the agent will control through Pipeline, live evaluation, Play Mode interaction, scene/prefab tooling, or runtime inspection.
+
+Do not rely on Unity Hub's per-project launch arguments when the agent launches the Editor directly; those settings can be bypassed.
+
+Preferred workflow:
+
+1. Read the pinned version from `ProjectSettings/ProjectVersion.txt`.
+2. Inspect the current project Editor processes with `Tools/get-unity-editor-state.ps1`.
+3. If no Editor is running for the project, launch it with `Tools/open-automated-editor.ps1`.
+4. If an Editor for the project is already running without `-automated`, stop and report it. Do not kill or restart a user-owned Editor without explicit authorization.
+5. Discover the installed Unity CLI surface (`unity --help`, `unity status --help`, `unity command --help`) and target the correct project explicitly when more than one Editor exists.
+6. Wait with a bounded timeout for the intended Editor/Pipeline instance to become available.
+7. Before task validation, confirm the Editor is the pinned version, automation-capable, connected when Pipeline is required, compilation is idle, and compile errors are zero.
+
+`-batchmode` is not a substitute for this interactive agent-controlled Editor path.
+
+Do not use `unity open` for an agent-controlled Editor unless the installed CLI explicitly supports forwarding the required `-automated` Editor argument. The repository launcher is the safe default because it makes the project requirement explicit.
+
+### Waiting without progress loops
+
+Unity startup and compilation can legitimately take time. Handle that with bounded polling rather than repeated assistant status messages.
+
+- Poll using commands/tools and keep the wait internal.
+- Emit a progress update only for a meaningful state change or when user action is required.
+- On timeout, report the last observed process/Pipeline/compilation state and the command that failed or remained unavailable.
+- Never repeat an unchanged “task remains active” message as a polling mechanism.
+
+### Health wording
+
+Distinguish these states explicitly:
+
+- Editor process running / not running;
+- automation argument present / absent;
+- Pipeline connected / unavailable when relevant;
+- compilation active / idle;
+- compile error count or explicit compile-success evidence;
+- content/scene/task-specific validation result.
+
+For example, prefer `Compilation: IDLE; compile errors: 0` over “Unity is not compiling.”
+
 ## Choose the correct layer
 
 Before changing code, classify it:

@@ -703,3 +703,37 @@ None.
 ### Integration notes
 
 Rejected movement returns the original state and does not consume RNG; discard reshuffles only when Draw cannot fulfill the hand-target request.
+
+## 2026-07-26 - Governance Tooling Repair: Automated Unity Editor Workflow
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `AGENTS.md` sections 4.1 and 4.2; `.agents/skills/bloomdrawn-unity/SKILL.md` automated Editor workflow
+**Commit:** pending
+
+### Outcome
+
+Established and verified the required automated-only agent Editor workflow. The repository now inspects target-project Unity processes, refuses unsafe non-automated attachment, launches the pinned Editor with `-automated`, waits with bounded retries, and reports unambiguous health evidence through the existing M0F Pipeline command.
+
+### Files and assets changed
+
+- `Tools/open-automated-editor.ps1` and `Tools/get-unity-editor-state.ps1` supplied workflow scripts, including installed-Editor discovery through Unity CLI.
+- `AGENTS.md` and the Bloomdrawn Unity skill operational rules for automated launch and bounded waits.
+- Existing M0F `bloom.health` result fields and Edit Mode coverage.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Process-state check | pass | Confirmed no pre-existing project Editor, then verified exactly one target-project process with `-automated`, no `-batchmode`, and pinned version `6000.5.5f1`. |
+| Automated launcher | pass | `Tools\\open-automated-editor.ps1` resolved `D:\\Dev\\Unity\\Editor\\6000.5.5f1\\Editor\\Unity.exe` via Unity CLI and launched PID 30168 with `-projectPath` and `-automated`. |
+| Pipeline/readiness | pass | Bounded readiness poll reached Pipeline `ready` for the intended project/PID. |
+| Health/content commands | pass | `bloom.health` returned Pipeline/editor readiness, `CompilationActive:false`, `CompileFailed:false`, `CompileSucceeded:true`, valid registry, and 19 definitions; `bloom.validate-content` passed. |
+| Edit Mode tests | pass | `unity test . --mode EditMode --output Logs\\ToolingRepair-EditMode-results.xml`: 33 passed. |
+| Play Mode tests | pass | `unity test . --mode PlayMode --output Logs\\ToolingRepair-PlayMode-results.xml`: 1 passed. |
+| Repository validation | pass | `Tools\\validate.ps1` completed successfully. |
+
+### Known follow-up
+
+- Resume M1D only after this repair is committed and the worktree is clean.

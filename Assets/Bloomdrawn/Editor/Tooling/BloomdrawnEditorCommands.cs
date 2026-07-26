@@ -8,7 +8,18 @@ using UnityEngine.SceneManagement;
 
 namespace Bloomdrawn.Editor.Tooling
 {
-    public sealed class BloomHealthResult { public string ProjectPath { get; set; } public string EditorVersion { get; set; } public bool IsCompiling { get; set; } public bool RegistryValid { get; set; } public int DefinitionCount { get; set; } }
+    public sealed class BloomHealthResult
+    {
+        public string ProjectPath { get; set; }
+        public string EditorVersion { get; set; }
+        public bool PipelineReady { get; set; }
+        public bool EditorReady { get; set; }
+        public bool CompilationActive { get; set; }
+        public bool CompileFailed { get; set; }
+        public bool CompileSucceeded { get; set; }
+        public bool RegistryValid { get; set; }
+        public int DefinitionCount { get; set; }
+    }
     public sealed class ContentValidationSummary { public bool Valid { get; set; } public int DefinitionCount { get; set; } }
     public sealed class BloomSceneSummary { public string Name { get; set; } public string Path { get; set; } public int RootObjectCount { get; set; } public bool IsDirty { get; set; } }
 
@@ -18,7 +29,20 @@ namespace Bloomdrawn.Editor.Tooling
         public static BloomHealthResult Health()
         {
             var validation = ValidateFixtureContent();
-            return new BloomHealthResult { ProjectPath = Directory.GetParent(UnityEngine.Application.dataPath).FullName, EditorVersion = UnityEngine.Application.unityVersion, IsCompiling = EditorApplication.isCompiling, RegistryValid = validation.IsValid, DefinitionCount = validation.IsValid ? validation.Content.Definitions.Count : 0 };
+            var compilationActive = EditorApplication.isCompiling;
+            var compileFailed = EditorUtility.scriptCompilationFailed;
+            return new BloomHealthResult
+            {
+                ProjectPath = Directory.GetParent(UnityEngine.Application.dataPath).FullName,
+                EditorVersion = UnityEngine.Application.unityVersion,
+                PipelineReady = true,
+                EditorReady = !compilationActive && !EditorApplication.isUpdating,
+                CompilationActive = compilationActive,
+                CompileFailed = compileFailed,
+                CompileSucceeded = !compilationActive && !compileFailed,
+                RegistryValid = validation.IsValid,
+                DefinitionCount = validation.IsValid ? validation.Content.Definitions.Count : 0
+            };
         }
 
         [CliCommand("bloom.validate-content", "Validate the canonical Bloomdrawn fixture content and return concise status.")]
