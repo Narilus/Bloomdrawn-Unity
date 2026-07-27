@@ -25,11 +25,21 @@ namespace Bloomdrawn.Content.Editor
             }
 
             var definitions = Directory.GetFiles(directoryPath, "*.yaml", SearchOption.AllDirectories)
+                .Where(path => !string.Equals(Path.GetFileName(path), "m1-runtime-launch.fixture.yaml", StringComparison.Ordinal))
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .Select(path => Deserializer.Deserialize<ContentDefinition>(File.ReadAllText(path)))
                 .ToList();
 
             return ContentValidator.Validate(definitions, origin);
+        }
+
+        public static M1FixtureLaunchManifest ReadM1FixtureLaunchManifest(string directoryPath)
+        {
+            var path = Path.Combine(directoryPath, "m1-runtime-launch.fixture.yaml");
+            if (!File.Exists(path)) throw new InvalidOperationException("M1 fixture runtime launch manifest is missing.");
+            var manifest = Deserializer.Deserialize<M1FixtureLaunchManifest>(File.ReadAllText(path));
+            if (manifest == null || manifest.SchemaVersion != 1 || string.IsNullOrWhiteSpace(manifest.LineupId) || string.IsNullOrWhiteSpace(manifest.EncounterId)) throw new InvalidOperationException("M1 fixture runtime launch manifest is invalid.");
+            return manifest;
         }
 
         public static ContentRegistry CreateRegistry(ContentValidationResult validation)

@@ -1,0 +1,5 @@
+schemaVersion: 1
+lineupId: fixture.m1.lineup.quartet
+encounterId: fixture.m1.encounter.training
+profileSeed: 71
+runSeed: 913

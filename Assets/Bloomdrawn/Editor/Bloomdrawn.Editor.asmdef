@@ -8,7 +8,8 @@
     "Bloomdrawn.Content",
     "Bloomdrawn.Content.Editor",
     "Unity.Pipeline",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [
     "Editor"

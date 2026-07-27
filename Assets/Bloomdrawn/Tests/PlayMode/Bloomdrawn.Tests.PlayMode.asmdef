@@ -5,7 +5,9 @@
     "Bloomdrawn.Presentation",
     "Bloomdrawn.Application",
     "Bloomdrawn.Engine",
-    "Bloomdrawn.Content"
+    "Bloomdrawn.Content",
+    "Unity.InputSystem",
+    "Unity.InputSystem.TestFramework"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

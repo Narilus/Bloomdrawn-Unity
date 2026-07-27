@@ -963,3 +963,70 @@ Restored the specified ordinary combat lifecycle: accepted cards finish from Res
 - The real `CombatStage` is now an enabled Player scene. A Play Mode test loads it, binds a deterministic fixture-shaped `CombatSession`, drives accepted complete commands through Victory, drains the presentation queue, verifies stable enemy actor routing, and confirms input unlocks after completion. The separate golden replay continues to prove the registry-derived fixture path.
 - The next ordinary player turn now clears ordinary party Shield before drawing/refilling, matching `DESIGN.md` §7.3; the enemy-sequence test proves that expiry on the actual `EnemyEnd -> RoundEnd -> PlayerTurnStart` transition.
 - Final validation passed: `Tools\\validate.ps1`; full Edit Mode (56/56) and Play Mode (4/4) suites; and `Tools\\build-smoke.ps1` producing `Builds\\Smoke\\Bloomdrawn.exe`.
+
+## 2026-07-27 - Task M1R: Runtime Integration Recovery
+
+**Status:** complete
+**Integrator:** Narilus
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` §§8, 15.1–15.5; DD-27 and DD-28
+**Plan/task file:** `plans/tasks/M1R-runtime-integration-recovery.md`
+**Commit:** pending
+
+### Outcome
+
+Repaired the ordinary committed `CombatStage` Player/Editor Play path. The scene now starts a fixture-only, registry-derived combat from a generated runtime artifact, displays independent fallback actors and a uGUI/TMP HUD/hand, and accepts real keyboard/mouse UI interaction through the existing M1 command/session/token path.
+
+### Files and assets changed
+
+- Fixture launch manifest and committed generated artifact: `GameContent/fixtures/m1-runtime-launch.fixture.yaml` and `Assets/Bloomdrawn/RuntimeData/Fixtures/M1FixtureRuntimeRegistry.json`.
+- Application-only artifact loader and combat flow; no Engine, save, M2, or production registry ownership changed.
+- Durable `CardDragLayer` source asset, runtime bootstrap/HUD/card/target/fallback actor views, and the regenerated `Assets/Scenes/CombatStage.unity`.
+- Editor artifact generator, committed-scene validator, and `bloom.validate-combat-stage` Pipeline command.
+- Generic TMP/uGUI fallback resources required by the committed combat HUD.
+
+### Tests added or updated
+
+- Committed-scene Edit Mode identity/missing-behaviour and generated-artifact loader tests.
+- Ordinary-launch Play Mode test: loads committed `CombatStage` without injection, creates virtual keyboard/mouse devices, selects cards, clicks targets and End Turn through the live Input System/EventSystem path, and reaches Victory.
+- Existing M1 presentation and DD-28 interaction tests remain active and pass.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Unity compile/import and `bloom.health` | pass | Unity 6000.5.5f1; Pipeline/editor ready; compilation idle, no compile failure, registry valid (19 definitions). |
+| `bloom.validate-content` | pass | Fixture registry remains valid. |
+| `bloom.validate-combat-stage` | pass | 0 missing behaviours; one Canvas/EventSystem/Main Camera; five fallback actors. |
+| Fixture/layout commands | pass | Load/reset fixture and independent 4+1 actor layout validation passed. |
+| Full Edit Mode tests | pass | 58/58. |
+| Full Play Mode tests | pass | 5/5, including ordinary launch and existing M1 gates. |
+| `Tools\\validate.ps1` | pass | Complete repository validation gate. |
+| `Tools\\build-smoke.ps1` | pass | Windows smoke Player built successfully. |
+
+### Skipped or unavailable validation
+
+Camera capture renders the camera only and cannot include the screen-space Canvas; ordinary Play Mode bootstrap/UI state is instead asserted by the committed public-input regression. The existing M1 aspect-ratio interaction gate remains green at 16:9, 16:10, and 3440x1440.
+
+### Decisions, assumptions, and deviations
+
+- Applied approved generated fixture-runtime delivery Option 1 only. Runtime deserializes JSON; YAML remains Editor-only.
+- The artifact content hash is `42bfd0854a4ba04eaa1ec8faed95e68b6ed11266b13c6fadff2600de25ff9acb` and records fixture origin, definitions, launch IDs, and named seeds (71/913).
+- Detached staged card views are cleared after accepted/rejected submission or cancellation so drag-layer transforms cannot accumulate, duplicate, or intercept later UI input.
+
+### Unity/project/package impact
+
+- Presentation now directly references the already-installed Engine, Content, Input System, and TMP assemblies for read-only state rendering and real uGUI/Input System presentation. No reverse Content dependency or Unity dependency enters Engine.
+- No package, ProjectSettings, render pipeline, or save configuration change.
+
+### Save, schema, migration, and content-version impact
+
+No save schema/version, migration, production content schema, or Engine replay contract change. The fixture-only runtime JSON artifact is generated from the existing validated fixture content and is not a save payload.
+
+### Asset/provenance impact
+
+Added generic non-production fallback presentation and required TMP resources. No generated art or production content was added.
+
+### Known follow-up
+
+None. M2 remains unstarted.

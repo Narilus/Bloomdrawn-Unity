@@ -2,7 +2,11 @@
   "name": "Bloomdrawn.Presentation",
   "rootNamespace": "Bloomdrawn.Presentation",
   "references": [
-    "Bloomdrawn.Application"
+    "Bloomdrawn.Application",
+    "Bloomdrawn.Engine",
+    "Bloomdrawn.Content",
+    "Unity.InputSystem",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

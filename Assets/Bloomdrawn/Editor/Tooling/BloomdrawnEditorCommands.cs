@@ -105,6 +105,9 @@ namespace Bloomdrawn.Editor.Tooling
             return new CombatLayoutValidationSummary { Valid = true, PartyActorCount = bindings.PartyRuntimeIds.Count, EnemyActorCount = bindings.EnemyRuntimeIds.Count, IndependentActorCount = all.Length };
         }
 
+        [CliCommand("bloom.validate-combat-stage", "Validate the committed CombatStage scene identity and Player-facing fallback bindings without running combat.")]
+        public static CombatStageSceneValidationSummary ValidateCombatStage() => CombatStageSceneValidator.ValidateCommittedScene();
+
         public static Bloomdrawn.Content.ContentValidationResult ValidateFixtureContent()
         {
             return ValidateContentDirectory(FixtureDirectory());

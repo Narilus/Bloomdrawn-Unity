@@ -38,21 +38,4 @@ namespace Bloomdrawn.Presentation
         private bool Submit(string enemyId) { var accepted=sink.Submit(new CardCommandSubmission(ActiveCardId,OwnerId,enemyId)); Cancel(); return accepted; }
     }
 
-    public sealed class CardDragLayer : MonoBehaviour
-    {
-        [SerializeField] private RectTransform playArea;
-        [SerializeField] private RectTransform dragLayer;
-        public RectTransform PlayArea => playArea; public RectTransform DragLayer => dragLayer;
-        public void Configure(RectTransform area, RectTransform layer) { playArea=area; dragLayer=layer; }
-        public bool IsAbovePlayArea(Vector2 screenPoint, Camera eventCamera)
-        {
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(playArea, screenPoint, eventCamera, out var local);
-            return local.y >= playArea.rect.yMin;
-        }
-        public void ReparentPreservingScreenPosition(RectTransform card, Camera eventCamera)
-        {
-            var screen=RectTransformUtility.WorldToScreenPoint(eventCamera, card.position); card.SetParent(dragLayer,false);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer,screen,eventCamera,out var local); card.anchoredPosition=local;
-        }
-    }
 }
