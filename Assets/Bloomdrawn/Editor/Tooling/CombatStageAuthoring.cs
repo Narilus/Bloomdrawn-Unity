@@ -28,30 +28,32 @@ namespace Bloomdrawn.Editor.Tooling
             var scaler = canvas.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(CombatStageLayout.ReferenceWidth, CombatStageLayout.ReferenceHeight); scaler.matchWidthOrHeight = CombatStageLayout.WidthHeightMatch;
             CreatePanel(canvas.transform, "Background Decor", Vector2.zero, Vector2.one, new Color(.035f, .055f, .11f, 1f), false);
 
-            var party = new GameObject("Party Formation", typeof(PartyFormationView)); party.transform.SetParent(canvas.transform, false);
-            var enemies = new GameObject("Enemy Formation", typeof(EnemyFormationView)); enemies.transform.SetParent(canvas.transform, false);
+            var party = CreateFormation(canvas.transform, "Party Formation", typeof(PartyFormationView));
+            var enemies = CreateFormation(canvas.transform, "Enemy Formation", typeof(EnemyFormationView));
             var partyActors = CreateActors(party.transform, "party", 4).ToArray();
             var enemyActors = CreateActors(enemies.transform, "enemy", 1).ToArray();
             party.GetComponent<PartyFormationView>().Configure(partyActors.Select(actor => actor.Actor).ToList());
             enemies.GetComponent<EnemyFormationView>().Configure(enemyActors.Select(actor => actor.Actor).ToList());
             root.GetComponent<CombatPresentationController>().Configure(party.GetComponent<PartyFormationView>(), enemies.GetComponent<EnemyFormationView>());
 
-            var survival = Region(canvas.transform, "Shared Survival Lane", new Vector2(.025f, .82f), new Vector2(.42f, .96f));
-            var mana = Region(canvas.transform, "Mana Region", new Vector2(.025f, .69f), new Vector2(.25f, .80f));
+            var survival = Region(canvas.transform, "Shared Survival Lane", new Vector2(.035f, .30f), new Vector2(.42f, .39f));
+            var mana = Region(canvas.transform, "Mana Region", new Vector2(.035f, .17f), new Vector2(.18f, .28f));
             var phase = Region(canvas.transform, "Phase Region", new Vector2(.42f, .88f), new Vector2(.72f, .96f));
-            var hand = Region(canvas.transform, "Hand Safe Area", new Vector2(.20f, .02f), new Vector2(.80f, .28f));
-            var endTurn = Region(canvas.transform, "End Turn Control", new Vector2(.82f, .07f), new Vector2(.97f, .18f));
-            var log = Region(canvas.transform, "Combat Log Overlay", new Vector2(.72f, .72f), new Vector2(.97f, .94f));
+            var hand = Region(canvas.transform, "Hand Safe Area", new Vector2(.23f, .015f), new Vector2(.77f, .28f));
+            var endTurn = Region(canvas.transform, "End Turn Control", new Vector2(.83f, .08f), new Vector2(.96f, .18f));
+            var log = Region(canvas.transform, "Combat Log Overlay", new Vector2(.78f, .78f), new Vector2(.96f, .93f));
             var enemyLane = Region(canvas.transform, "Enemy Target Lane", new Vector2(.58f, .25f), new Vector2(.96f, .70f));
             var play = Region(canvas.transform, "Play Area", new Vector2(.25f, .29f), new Vector2(.75f, .53f));
-            CreatePanel(play, "Play Area Backdrop", Vector2.zero, Vector2.one, new Color(.13f, .24f, .30f, .36f), false);
             var drag = Region(canvas.transform, "Card Drag Layer", Vector2.zero, Vector2.one);
             var dragLayer = drag.gameObject.AddComponent<CardDragLayer>(); dragLayer.Configure(play, drag);
 
-            var survivalText = CreateText(survival, "Survival Text", 31, TextAlignmentOptions.Left);
-            var manaText = CreateText(mana, "Mana Text", 28, TextAlignmentOptions.Left);
+            CreatePanel(survival, "Survival Backplate", Vector2.zero, Vector2.one, new Color(.08f, .11f, .18f, .92f), false);
+            CreatePanel(mana, "Mana Backplate", Vector2.zero, Vector2.one, new Color(.08f, .11f, .18f, .92f), false);
+            CreatePanel(log, "Log Backplate", Vector2.zero, Vector2.one, new Color(.08f, .11f, .18f, .88f), false);
+            var survivalText = CreateText(survival, "Survival Text", 26, TextAlignmentOptions.Center);
+            var manaText = CreateText(mana, "Mana Text", 22, TextAlignmentOptions.Center);
             var phaseText = CreateText(phase, "Phase Text", 25, TextAlignmentOptions.Center);
-            var logText = CreateText(log, "Combat Log Text", 22, TextAlignmentOptions.TopLeft);
+            var logText = CreateText(log, "Combat Log Text", 18, TextAlignmentOptions.TopLeft);
             var endButton = CreateButton(endTurn, "End Turn", "End Turn");
             var hud = canvas.AddComponent<CombatHudView>();
             hud.Configure(hand, survivalText, manaText, phaseText, logText, endButton, partyActors.Concat(enemyActors).ToArray(), enemyActors.Select(actor => actor.Target).ToArray());
@@ -74,6 +76,17 @@ namespace Bloomdrawn.Editor.Tooling
             var rect = (RectTransform)go.transform; rect.anchorMin = min; rect.anchorMax = max; rect.offsetMin = rect.offsetMax = Vector2.zero; return rect;
         }
 
+        private static GameObject CreateFormation(Transform parent, string name, System.Type viewType)
+        {
+            var formation = new GameObject(name, typeof(RectTransform), viewType);
+            formation.transform.SetParent(parent, false);
+            var rect = (RectTransform)formation.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            return formation;
+        }
+
         private static Image CreatePanel(Transform parent, string name, Vector2 min, Vector2 max, Color color, bool raycast)
         {
             var panel = new GameObject(name, typeof(RectTransform), typeof(Image)); panel.transform.SetParent(parent, false);
@@ -94,8 +107,8 @@ namespace Bloomdrawn.Editor.Tooling
         {
             var root = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)); root.transform.SetParent(parent, false);
             var rect = (RectTransform)root.transform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
-            root.GetComponent<Image>().color = new Color(.24f, .50f, .67f, 1f);
-            var text = CreateText(root.transform, "Label", 28, TextAlignmentOptions.Center); text.text = label;
+            root.GetComponent<Image>().color = new Color(.72f, .35f, .14f, 1f);
+            var text = CreateText(root.transform, "Label", 24, TextAlignmentOptions.Center); text.text = label.ToUpperInvariant() + "\nTURN CONTROL";
             return root.GetComponent<Button>();
         }
 
@@ -104,14 +117,21 @@ namespace Bloomdrawn.Editor.Tooling
             for (var i = 0; i < count; i++)
             {
                 var actor = new GameObject(role + " Actor " + i, typeof(RectTransform), typeof(CombatActorView), typeof(CombatActorTokenReaction), typeof(CombatActorFallbackView)); actor.transform.SetParent(parent, false);
-                var rect = (RectTransform)actor.transform; var x = role == "party" ? .10f + i * .105f : .73f + i * .12f; rect.anchorMin = rect.anchorMax = new Vector2(x, .48f); rect.sizeDelta = new Vector2(150, 250);
+                var rect = (RectTransform)actor.transform;
+                var x = role == "party" ? .10f + i * .105f : .76f + i * .12f;
+                var y = role == "party" ? .505f + i * .035f : .56f;
+                rect.anchorMin = rect.anchorMax = new Vector2(x, y);
+                rect.sizeDelta = role == "party" ? new Vector2(150, 230) : new Vector2(190, 270);
                 Transform Anchor(string name) { var anchor = new GameObject(name, typeof(RectTransform)); anchor.transform.SetParent(actor.transform, false); var anchorRect = (RectTransform)anchor.transform; anchorRect.anchorMin = Vector2.zero; anchorRect.anchorMax = Vector2.one; anchorRect.offsetMin = anchorRect.offsetMax = Vector2.zero; return anchor.transform; }
                 var visual = Anchor("Visual Anchor"); var targetAnchor = Anchor("Target Anchor"); var selection = Anchor("Selection Anchor"); var status = Anchor("Status Anchor"); var vfx = Anchor("VFX Anchor"); var intent = Anchor("Intent Anchor");
                 var actorView = actor.GetComponent<CombatActorView>(); actorView.Configure("fixture." + role + "." + i, visual, targetAnchor, selection, status, vfx, intent);
                 var visualImage = CreatePanel(visual, "Fallback Visual", Vector2.zero, Vector2.one, role == "enemy" ? new Color(.7f, .18f, .22f, 1f) : new Color(.18f, .42f, .7f, 1f), false);
                 var label = CreateText(visual, "Fallback Label", 18, TextAlignmentOptions.Center);
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 13;
+                label.fontSizeMax = 18;
                 CombatEnemyTargetView target = null;
-                if (role == "enemy") { var targetImage = CreatePanel(targetAnchor, "Target Affordance", Vector2.zero, Vector2.one, new Color(.7f, .18f, .22f, .72f), true); target = targetAnchor.gameObject.AddComponent<CombatEnemyTargetView>(); target.Configure(actorView, targetImage); }
+                if (role == "enemy") { var targetImage = CreatePanel(targetAnchor, "Target Affordance", Vector2.zero, Vector2.one, new Color(.7f, .18f, .22f, .08f), true); target = targetAnchor.gameObject.AddComponent<CombatEnemyTargetView>(); target.Configure(actorView, targetImage); }
                 var fallback = actor.GetComponent<CombatActorFallbackView>(); fallback.Configure(actorView, role == "enemy", visualImage, label, target);
                 yield return fallback;
             }

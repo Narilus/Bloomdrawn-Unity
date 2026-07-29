@@ -9,31 +9,73 @@ namespace Bloomdrawn.Presentation
     public sealed class CombatCardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
     {
         private CombatStageRuntimeBootstrap bootstrap;
-        private TextMeshProUGUI label;
         private Image image;
+        private GameObject armedCue;
         private bool dragged;
         public string CardId { get; private set; }
         public string OwnerId { get; private set; }
         public bool RequiresEnemyTarget { get; private set; }
         public RectTransform RectTransform => (RectTransform)transform;
 
-        public static CombatCardView Create(Transform parent, CombatStageRuntimeBootstrap bootstrap, CardInstance instance)
+        public static CombatCardView Create(Transform parent, CombatStageRuntimeBootstrap bootstrap, CardInstance instance, string displayName)
         {
             var root = new GameObject("Card " + instance.Id, typeof(RectTransform), typeof(Image), typeof(CombatCardView));
             root.transform.SetParent(parent, false);
             var rect = (RectTransform)root.transform;
-            rect.sizeDelta = new Vector2(160, 220);
-            var image = root.GetComponent<Image>(); image.color = new Color(.2f, .22f, .34f, 1f);
-            var text = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
-            text.transform.SetParent(root.transform, false); text.font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF"); text.alignment = TextAlignmentOptions.Center; text.fontSize = 24; text.color = Color.white;
-            ((RectTransform)text.transform).anchorMin = Vector2.zero; ((RectTransform)text.transform).anchorMax = Vector2.one; ((RectTransform)text.transform).offsetMin = new Vector2(8, 8); ((RectTransform)text.transform).offsetMax = new Vector2(-8, -8);
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, .5f);
+            rect.sizeDelta = new Vector2(180, 246);
+            var image = root.GetComponent<Image>();
+            image.color = new Color(.16f, .18f, .28f, 1f);
+
+            var title = CreateText(root.transform, "Title", new Vector2(.10f, .57f), new Vector2(.90f, .90f), 27, TextAlignmentOptions.Top);
+            title.text = string.IsNullOrWhiteSpace(displayName) ? "Fixture Card" : displayName;
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 18;
+            title.fontSizeMax = 27;
+
+            var operation = CreateText(root.transform, "Operation", new Vector2(.10f, .30f), new Vector2(.90f, .54f), 18, TextAlignmentOptions.Center);
+            operation.text = instance.OperationKind.ToUpperInvariant();
+            operation.color = new Color(.74f, .80f, .92f, 1f);
+
+            var fixtureTag = CreateText(root.transform, "Fixture Tag", new Vector2(.10f, .06f), new Vector2(.90f, .20f), 13, TextAlignmentOptions.Center);
+            fixtureTag.text = "NON-PRODUCTION FIXTURE";
+            fixtureTag.color = new Color(.58f, .64f, .76f, 1f);
+
+            var costRoot = new GameObject("Cost Badge", typeof(RectTransform), typeof(Image));
+            costRoot.transform.SetParent(root.transform, false);
+            var costRect = (RectTransform)costRoot.transform;
+            costRect.anchorMin = costRect.anchorMax = new Vector2(.12f, .89f);
+            costRect.sizeDelta = new Vector2(52, 52);
+            costRoot.GetComponent<Image>().color = new Color(.88f, .60f, .18f, 1f);
+            var cost = CreateText(costRoot.transform, "Cost", Vector2.zero, Vector2.one, 32, TextAlignmentOptions.Center);
+            cost.text = instance.CurrentCost.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            var cue = new GameObject("Armed Cue", typeof(RectTransform), typeof(Image));
+            cue.transform.SetParent(root.transform, false);
+            var cueRect = (RectTransform)cue.transform;
+            cueRect.anchorMin = new Vector2(.08f, .42f);
+            cueRect.anchorMax = new Vector2(.92f, .58f);
+            cueRect.offsetMin = cueRect.offsetMax = Vector2.zero;
+            cue.GetComponent<Image>().color = new Color(.18f, .50f, .24f, .96f);
+            var cueText = CreateText(cue.transform, "Label", Vector2.zero, Vector2.one, 16, TextAlignmentOptions.Center);
+            cueText.text = "READY • RELEASE TO PLAY";
+            cue.SetActive(false);
+
             var view = root.GetComponent<CombatCardView>();
-            view.bootstrap = bootstrap; view.label = text; view.image = image; view.CardId = instance.Id; view.OwnerId = instance.OwnerId.Value; view.RequiresEnemyTarget = instance.TargetKind == CardTargetKind.OneEnemy;
-            text.text = instance.DefinitionId + "\n" + instance.OperationKind + "  " + instance.CurrentCost + " Mana";
+            view.bootstrap = bootstrap;
+            view.image = image;
+            view.armedCue = cue;
+            view.CardId = instance.Id;
+            view.OwnerId = instance.OwnerId.Value;
+            view.RequiresEnemyTarget = instance.TargetKind == CardTargetKind.OneEnemy;
             return view;
         }
 
-        public void SetArmed(bool armed) { if (image != null) image.color = armed ? new Color(.42f, .7f, .36f, 1f) : new Color(.2f, .22f, .34f, 1f); }
+        public void SetArmed(bool armed)
+        {
+            if (image != null) image.color = armed ? new Color(.24f, .44f, .25f, 1f) : new Color(.16f, .18f, .28f, 1f);
+            if (armedCue != null) armedCue.SetActive(armed);
+        }
         public void OnBeginDrag(PointerEventData eventData) { dragged = true; bootstrap.BeginCardDrag(this, eventData); }
         public void OnDrag(PointerEventData eventData) { bootstrap.UpdateCardDrag(this, eventData); }
         public void OnEndDrag(PointerEventData eventData) { bootstrap.ReleaseCardDrag(this); }
@@ -42,6 +84,22 @@ namespace Bloomdrawn.Presentation
             if (eventData.button == PointerEventData.InputButton.Right) bootstrap.CancelInteraction();
             else if (!dragged) bootstrap.ClickCard(this);
             dragged = false;
+        }
+
+        private static TextMeshProUGUI CreateText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float size, TextAlignmentOptions alignment)
+        {
+            var text = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
+            text.transform.SetParent(parent, false);
+            var rect = (RectTransform)text.transform;
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            text.font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+            text.fontSize = size;
+            text.alignment = alignment;
+            text.color = Color.white;
+            text.raycastTarget = false;
+            return text;
         }
     }
 }

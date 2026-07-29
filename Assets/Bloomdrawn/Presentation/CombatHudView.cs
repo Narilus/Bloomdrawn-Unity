@@ -34,12 +34,14 @@ namespace Bloomdrawn.Presentation
 
         public void Refresh(CombatState state, CardInteractionState interactionState, string rejection)
         {
-            survivalText.text = $"Party  {state.Values.Party.CurrentHp}/{state.Values.Party.MaximumHp}   Shield {state.Values.Party.Shield}";
-            manaText.text = $"Mana {state.Mana.Current}/{state.Mana.Maximum}";
-            phaseText.text = state.Phase + "  Round " + state.RoundNumber;
-            logText.text = string.IsNullOrEmpty(rejection) ? (interactionState == CardInteractionState.TargetSelection ? "Choose an enemy target" : "Combat log") : "Rejected: " + rejection;
+            survivalText.text = $"PARTY  {state.Values.Party.CurrentHp}/{state.Values.Party.MaximumHp}    SHIELD  {state.Values.Party.Shield}";
+            manaText.text = $"MANA\n{state.Mana.Current} / {state.Mana.Maximum}";
+            phaseText.text = FormatPhase(state.Phase) + "   •   ROUND " + state.RoundNumber;
+            logText.text = string.IsNullOrEmpty(rejection)
+                ? (interactionState == CardInteractionState.TargetSelection ? "COMBAT LOG\nChoose an enemy target" : "COMBAT LOG\nReady")
+                : "COMBAT LOG\nRejected: " + rejection;
             endTurnButton.interactable = state.Phase == CombatPhase.PlayerAction && interactionState != CardInteractionState.TargetSelection;
-            foreach (var actor in actorViews) actor.Refresh(state, interactionState == CardInteractionState.TargetSelection);
+            foreach (var actor in actorViews) actor.Refresh(state, interactionState == CardInteractionState.TargetSelection, bootstrap.DisplayNameFor);
             RebuildHand(state);
         }
 
@@ -55,15 +57,32 @@ namespace Bloomdrawn.Presentation
         {
             foreach (Transform child in handContainer) Destroy(child.gameObject);
             cards.Clear();
-            var poses = HandFanLayout.Calculate(state.Deck.Hand.Count, handContainer.rect.width <= 1 ? 900 : handContainer.rect.width);
+            var poses = HandFanLayout.Calculate(state.Deck.Hand.Count, handContainer.rect.width <= 1 ? 1040 : handContainer.rect.width, 188f, 22f, 8f);
             for (var i = 0; i < state.Deck.Hand.Count; i++)
             {
                 var instance = state.Deck.Hand[i];
-                var cardObject = CombatCardView.Create(handContainer, bootstrap, instance);
+                var cardObject = CombatCardView.Create(
+                    handContainer,
+                    bootstrap,
+                    instance,
+                    bootstrap.DisplayNameFor(instance.DefinitionId, "Fixture Card"));
                 cardObject.RectTransform.anchoredPosition = poses[i].Position;
                 cardObject.RectTransform.localRotation = Quaternion.Euler(0, 0, poses[i].Rotation);
                 cardObject.transform.SetSiblingIndex(poses[i].Depth);
                 cards.Add(instance.Id, cardObject);
+            }
+        }
+
+        private static string FormatPhase(CombatPhase phase)
+        {
+            switch (phase)
+            {
+                case CombatPhase.PlayerAction: return "PLAYER ACTION";
+                case CombatPhase.EnemyPhaseStart: return "ENEMY PHASE";
+                case CombatPhase.EnemyAction: return "ENEMY ACTION";
+                case CombatPhase.Victory: return "VICTORY";
+                case CombatPhase.Defeat: return "DEFEAT";
+                default: return phase.ToString().ToUpperInvariant();
             }
         }
     }

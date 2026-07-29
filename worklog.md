@@ -1030,3 +1030,77 @@ Added generic non-production fallback presentation and required TMP resources. N
 ### Known follow-up
 
 None. M2 remains unstarted.
+
+## 2026-07-29 - Task M1R Follow-up: Fixture Presentation Readability
+
+**Status:** complete
+**Integrator:** Codex
+**Contributors/subagents:** none
+**Design references:** `docs/DESIGN.md` §§8.3–8.10 and 15.1–15.5; DD-26, DD-27, and DD-28
+**Plan/task file:** `plans/tasks/M1R-runtime-integration-recovery.md` plus the project-owner-approved bounded presentation-readability follow-up
+**Commit:** pending
+
+### Outcome
+
+Improved only the existing generic M1 fixture presentation on the committed ordinary `CombatStage` path. Four independent party placeholders now read clearly on the left/lower-left, the targetable enemy remains distinct on the right, the five-card hand is bottom-centred with modest fan spacing, registry-derived display names and prominent costs replace raw definition IDs, and the landscape End Turn control is visually separate. Shared HP/Shield, Mana, phase/round, and the compact combat log retain the approved M1 information relationship without the former opaque Play Area debug panel.
+
+### Files and assets changed
+
+- Presentation-only runtime views: `CombatActorFallbackView`, `CombatCardView`, `CombatEnemyTargetView`, `CombatHudView`, and `CombatStageRuntimeBootstrap`.
+- Existing project-owned `CombatStageAuthoring` and the re-authored committed `Assets/Scenes/CombatStage.unity`.
+- Before/after evidence under `Artifacts/M1PresentationReadability/`.
+- This append-only worklog entry.
+
+### Tests added or updated
+
+None. No existing tests, expected values, or acceptance assertions changed.
+
+### Validation performed
+
+| Command/check | Result | Notes |
+|---|---|---|
+| Automated Editor and compile/import health | pass | Unity `6000.5.5f1`; wrapper-launched PID used `-automated` and not `-batchmode`; Pipeline ready; compilation idle; compile errors 0. |
+| Ordinary committed-scene launch | pass | `CombatStage.unity` entered Play normally and automatically bootstrapped five cards plus four party and one enemy fallback actor without session/tool injection. |
+| Game-view evidence | pass | Actual framebuffer captures at 1920x1080, 1920x1200, and 3440x1440 show no critical clipping or overlap; temporary Game-view presets were removed afterward. |
+| Runtime Console | pass | Cleared ordinary Play run reported zero Unity Console errors. |
+| Committed-scene validation | pass | `bloom.validate-combat-stage`: zero missing behaviours; one Canvas, EventSystem, and Main Camera; five fallback actors. |
+| Content/fixture/layout commands | pass | `bloom.validate-content`, fixture load/dump/reset, `bloom.validate-combat-layout`, and `bloom.scene-summary` all passed; independent actor count remained 4+1. |
+| Full Edit Mode tests | pass | 58/58 passed, 0 failed, 0 skipped. |
+| Full Play Mode tests | pass | 5/5 passed, including `CommittedStage_OrdinaryLaunchAndPublicInputReachTerminalCombat`; public Input System/EventSystem input played cards, clicked targets and End Turn, presented sequential enemy actions, and reached Victory. |
+| Project validation | pass | `Tools/validate.ps1`. |
+| Windows smoke build | pass | `Tools/build-smoke.ps1` produced `Builds/Smoke/Bloomdrawn.exe`. |
+
+### Skipped or unavailable validation
+
+None.
+
+### Decisions, assumptions, and deviations
+
+- Registry display names are projected read-only from the same generated fixture artifact after the Application loader validates it; presentation retains no gameplay authority and contains no named fixture-ID branches.
+- The existing scene was re-authored through `CombatStageAuthoring`; serialized Unity YAML was not hand-edited.
+- No new plan document was created, as directed by the project owner.
+
+### Unity/project/package impact
+
+No Unity version, package, render pipeline, input architecture, assembly boundary, build profile, or protected workflow change.
+
+### Save, schema, migration, and content-version impact
+
+None. Authoritative rules, fixture values, RNG, commands, session behaviour, replay compatibility, production content, and persistence are unchanged.
+
+### Asset/provenance impact
+
+Generic non-production fallback UI only. No production character art or generated art was introduced.
+
+### Known follow-up
+
+None. M2 remains unstarted.
+
+### Integration notes
+
+Evidence locations:
+
+- `Artifacts/M1PresentationReadability/before-1920x1080.png`
+- `Artifacts/M1PresentationReadability/after-1920x1080.png`
+- `Artifacts/M1PresentationReadability/after-1920x1200.png`
+- `Artifacts/M1PresentationReadability/after-3440x1440.png`
