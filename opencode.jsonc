@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Start in the planning role rather than OpenCode's unrestricted Build role.
+  "default_agent": "bloom-planner",
+
+  // Primary agents may use one read-only helper layer. Helpers may not recurse.
+  "subagent_depth": 1,
+
+  // Keep project sessions private unless the owner explicitly changes this.
+  "share": "disabled",
+
+  "agent": {
+    // Remove broad write-capable escape hatches from this project.
+    "build": {
+      "disable": true
+    },
+    "general": {
+      "disable": true
+    },
+
+    // Cheap read-only repository and upstream-documentation workers.
+    "explore": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "scout": {
+      "model": "deepseek/deepseek-v4-flash"
+    }
+  }
+}
