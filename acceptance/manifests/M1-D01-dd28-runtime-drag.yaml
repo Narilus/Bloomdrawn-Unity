@@ -1,0 +1,273 @@
+schema_version: 1
+task_id: M1-D01
+title: Restore the real DD-28 ordinary-runtime card drag path
+status: frozen_for_owner_review
+
+baseline:
+  source_commit: 6e910f7811dc3b7f07aa5d30b7ca574d561b45a6
+  branch: fix/m1-dd28-runtime-drag
+  project_path: 'D:\Dev\Projects\Bloomdrawn-Unity-M1D01'
+  unity: 6000.5.5f1
+  input_system: 1.19.0
+  ugui: 2.5.0
+
+owner_decisions:
+  preserve_current_click_keyboard_paths: true
+  current_path_is_final_design_approval: false
+  strict_design_8_5_alignment: separate_follow_up
+  protected_executable_harness_required: true
+
+preconditions:
+  - id: protected-harness
+    required: true
+    owner: project_owner_or_external_workflow
+    path: Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs
+    test_identity: Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests
+    builder_writable: false
+    failure: BLOCKED
+  - id: protected-harness-hash
+    required: true
+    description: Owner records the frozen harness commit or content hash before Builder invocation.
+    failure: BLOCKED
+  - id: editor
+    required: true
+    fields:
+      project_matches: true
+      version: 6000.5.5f1
+      automated: true
+      pipeline_available: true
+      editor_ready: true
+      compilation_active: false
+      compile_errors: 0
+    timeout_seconds: 180
+    failure: BLOCKED
+
+authority:
+  - AGENTS.md
+  - docs/DESIGN.md#5.6-5.8
+  - docs/DESIGN.md#6.5
+  - docs/DESIGN.md#8.3-8.5
+  - docs/DESIGN.md#8.9-8.10
+  - docs/DESIGN.md#15.1-15.5
+  - plans/design-decisions.md#DD-27
+  - plans/design-decisions.md#DD-28
+  - plans/implementation_plan.md#2.2
+  - plans/implementation_plan.md#2.6
+  - plans/implementation_plan.md#Task-M1H
+  - plans/implementation_plan.md#Task-M1J
+  - plans/implementation_plan.md#M1-exit-criteria
+  - plans/tasks/M1H-card-fan-drag-targeting.md
+  - plans/tasks/M1J-golden-replay-playmode-gate.md
+  - plans/tasks/M1R-runtime-integration-recovery.md
+  - agent-tasks/M1-D01-dd28-runtime-drag.md
+
+entrypoint:
+  scene: Assets/Scenes/CombatStage.unity
+  mode: ordinary_play_mode
+  bootstrap: automatic
+  expected_path:
+    - committed_scene
+    - automatic_runtime_bootstrap
+    - runtime_spawned_CombatCardView
+    - Unity_EventSystem_and_InputSystem_pointer
+    - upward_drag
+    - responsive_Play_Area_arm_disarm
+    - complete_command_sink
+    - CombatRuntimeFlow
+    - CombatSession
+    - authoritative_state_and_events
+    - presentation_tokens
+
+input_policy:
+  pointer: virtual Mouse through public Input System state events
+  keyboard: virtual Keyboard through public Input System state events
+  processing: normal PlayerLoop and EventSystem
+  direct_transform_motion_as_input: forbidden
+
+forbidden_bypasses:
+  - direct CardInteractionController calls
+  - direct Unity event-handler calls
+  - direct CombatStageRuntimeBootstrap interaction-method calls
+  - replacement or test-created card UI
+  - test-created EventSystem or input module
+  - manual combat-session construction or binding
+  - direct CombatSession.Submit or CombatRuntimeFlow.Play
+  - bloom.load-combat-fixture
+  - fixture session injection or reset
+  - manual presenter advance or completion
+  - scene reconstruction or repair from test setup
+  - direct dragged-card transform mutation as pointer substitute
+  - weakened, skipped, rewritten, or conditionalized assertions
+
+protected_paths:
+  - acceptance/**
+  - agent-tasks/**
+  - Assets/Bloomdrawn/Tests/Acceptance/**
+  - AGENTS.md
+  - .agents/**
+  - .opencode/**
+  - docs/**
+  - plans/**
+  - ProjectSettings/**
+  - Packages/**
+  - Assets/Bloomdrawn/Engine/**
+  - Assets/Bloomdrawn/Content/**
+  - Assets/Bloomdrawn/Application/**
+  - Assets/Bloomdrawn/RuntimeData/**
+  - Assets/Bloomdrawn/Tests/EditMode/**
+  - Assets/Bloomdrawn/Tests/PlayMode/BootstrapSceneSmokeTests.cs
+  - Assets/Bloomdrawn/Tests/PlayMode/CombatStageOrdinaryLaunchPlayModeTests.cs
+  - Assets/Bloomdrawn/Tests/PlayMode/M1CombatInteractionGatePlayModeTests.cs
+
+resolutions:
+  - id: 16_9
+    width: 1920
+    height: 1080
+  - id: 16_10
+    width: 1920
+    height: 1200
+  - id: ultrawide
+    width: 3440
+    height: 1440
+
+criteria:
+  - id: ordinary-bootstrap
+    assertion: The committed scene enters ordinary Play Mode and automatically creates a fixture combat, EventSystem, runtime hand, and actual runtime-spawned card views without injection.
+  - id: pointer-reaches-runtime-card
+    assertion: Public pointer movement/down/move/up is raycast and dispatched by the real EventSystem to the same active runtime-spawned card; begin, drag, and end delivery are observed without direct handler calls.
+  - id: hover-focus
+    assertion: Pointer hover or keyboard focus visibly raises the card above its resting pose/neighbours and leaving focus restores the calculated fan without changing authoritative hand order or canonical gameplay state.
+  - id: drag-position
+    assertion: After public pointer drag begins, the active card follows the pointer through the declared canvas conversion path without coordinate jump, scale jump, or loss of pointer relationship.
+  - id: arm
+    assertion: Crossing upward past the responsive Play Area threshold enters DraggingArmed and displays a visible non-colour-only ready cue.
+  - id: remain-armed-above
+    assertion: Continuing above the threshold, including beyond the Play Area rectangle's upper edge while within usable canvas bounds, remains armed.
+  - id: disarm
+    assertion: Returning below the threshold enters DraggingDisarmed and removes the armed cue.
+  - id: release-below-no-mutation
+    assertion: Releasing below cancels and returns to the recalculated fan with zero accepted commands and no Mana, pile, gameplay-event, canonical-state, or named-RNG-stream change.
+  - id: target-complete-once
+    assertion: Releasing a target-complete runtime card while armed submits exactly one complete accepted command through the normal flow and applies exactly one authoritative transition.
+  - id: explicit-target-stage
+    assertion: Releasing an explicit-target runtime card while armed submits no command, spends no Mana, mutates no pile/event/RNG state, keeps one visibly staged card, and highlights the legal independent enemy target(s).
+  - id: target-cancel
+    assertion: Escape and right-click cancellation each return the staged card to the recalculated authoritative hand with no command or gameplay mutation and no detached/stale view.
+  - id: legal-target-once
+    assertion: Public pointer selection of a legal enemy while staged submits exactly one complete accepted command for the staged card and intended independent enemy.
+  - id: repeated-cycles
+    minimum_cycles: 10
+    assertion: Repeated hover, upward drag, disarm, and cancel cycles preserve authoritative order and produce no positional/rotational drift, duplicate card views, duplicate handlers/submissions, stale references, active-view destruction, coordinate jump, or off-screen/unrecoverable cards.
+  - id: click-compatibility
+    assertion: Existing click-card then click-target behavior remains functional; target-complete click submits once and explicit-target click stages then legal target click submits once.
+    note: This is non-regression only, not final approval of the one-step UX.
+  - id: keyboard-compatibility
+    assertion: Existing number-key selection remains functional and semantically equivalent to the preserved click route; Escape cancels and current Enter/Space behavior does not regress.
+    note: Strict DESIGN 8.5 confirmation alignment is a separate follow-up.
+  - id: responsive-layout
+    assertion: Every interaction criterion relevant to layout passes against actual runtime views at 1920x1080, 1920x1200, and 3440x1440; hand, staged card, cue, Play Area, targets, and controls remain visible, readable, non-colliding, and in usable bounds.
+  - id: runtime-health
+    assertion: The tested ordinary-runtime path has no missing scripts, null runtime bindings, unexpected Console errors/exceptions, extra Canvas/EventSystem, or Editor-only gameplay dependency.
+
+state_evidence:
+  compare_before_after:
+    - canonical_combat_state
+    - authoritative_hand_order
+    - mana_current_and_maximum
+    - draw_hand_discard_graveyard_contents
+    - accepted_command_count
+    - gameplay_event_count_and_order
+    - every_named_rng_stream_state
+    - runtime_card_instance_ids_and_active_view_count
+  exactly_once_cases:
+    - target_complete_armed_release
+    - explicit_target_legal_enemy_selection
+  zero_mutation_cases:
+    - hover_and_focus
+    - disarmed_release
+    - explicit_target_staging
+    - explicit_target_escape_cancel
+    - explicit_target_right_click_cancel
+
+visual_evidence:
+  builder_directory: Logs/M1-D01/Builder
+  auditor_directory: Logs/M1-D01/Auditor
+  protected_owner: auditor
+  required_per_resolution:
+    - resting_and_hover_rise
+    - armed_non_colour_ready_cue
+    - explicit_target_stage_with_legal_highlight
+  index_fields:
+    - tested_commit
+    - protected_harness_commit_or_hash
+    - width
+    - height
+    - interaction_state
+    - active_card_id
+    - timestamp_or_sequence
+  console_log_required: true
+  public_input_trace_required: true
+
+validation:
+  discovery:
+    - unity --help
+    - unity command --help
+    - unity pipeline list
+    - unity command
+  gates:
+    - focused Builder-owned M1-D01 Play Mode developer tests
+    - protected M1D01RuntimeDragAcceptanceTests
+    - Tools\validate.ps1
+    - complete Edit Mode suite -> Logs\M1-D01-EditMode-results.xml
+    - complete Play Mode suite -> Logs\M1-D01-PlayMode-results.xml
+    - bloom.health
+    - bloom.validate-content
+    - bloom.validate-combat-stage
+    - bloom.scene-summary with committed CombatStage active
+    - bloom.validate-combat-layout as supplementary evidence only
+    - Tools\build-smoke.ps1
+    - git diff --check
+  forbidden_in_acceptance:
+    - bloom.load-combat-fixture
+    - bloom.reset-combat-fixture
+    - bloom.dump-combat-state as a replacement for ordinary-runtime evidence
+
+checker:
+  agent: bloom-checker
+  invocations: exactly_one
+  timing: after_compile_and_focused_developer_tests_before_final_acceptance_claim
+  result_is_advisory: true
+  blocked_result_returns_to_owner: true
+
+repair_policy:
+  total_cycles_after_first_acceptance_run: 3
+  distinct_failed_attempts_before_specialist_request: 2
+  specialist_requires_owner_approval: true
+  similar_failures_without_new_evidence: 3
+  on_exhaustion: BLOCKED
+
+auditor:
+  read_only: true
+  independently_rerun_protected_harness: true
+  independently_capture_ordinary_runtime: true
+  verify_no_bypasses_before_trusting_results: true
+  verify_protected_hash_and_complete_diff: true
+  verdicts:
+    - PASS
+    - FAIL
+    - BLOCKED
+  only_pass_certifies_completion: true
+
+completion:
+  requires:
+    - all criteria pass
+    - all required validation gates pass
+    - protected Auditor evidence exists for tested commit
+    - no protected or forbidden file changed by Builder
+    - bloom-checker findings disposed
+    - auditor verdict is PASS
+  builder_must_not:
+    - self_certify
+    - stage
+    - commit
+    - push
