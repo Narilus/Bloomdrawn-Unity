@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "taskId": "M1-D01",
+  "algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance.meta",
+      "sha256": "09B176515A377956C00A8BD8C236D8C671B061C59AF965B4DEA0B42353426A9A"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Bloomdrawn.Tests.PlayMode.asmref",
+      "sha256": "432345BD3D5C9A3E9FB883D89F49FF162027A114630418DA3CCBF86EE0951F22"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Bloomdrawn.Tests.PlayMode.asmref.meta",
+      "sha256": "01E79994B7B504A3910D64830DE6518A5D0C6F2C38FBF0BEDFC72A59A20E2528"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs",
+      "sha256": "DC78E85018C926513E5FE7EEF38508FBBD70A742197006A5E43A6B9FAD0FBEB9"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs.meta",
+      "sha256": "81626C852110FD1A473DC536426A2A35437213237ED7FB549E188B2572864782"
+    },
+    {
+      "path": "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
+      "sha256": "C149045A068A0FAE3FD601C12976A281EDE91EEE4E24AF3F856DC02817816434"
+    },
+    {
+      "path": "Tools/Acceptance/M1-D01-runner-contract.json",
+      "sha256": "4EA4D38AECFBC439D7EF6C204C37165907462C3E1A7CCFEF6D14B4BE3A900E7E"
+    },
+    {
+      "path": "Tools/Acceptance/M1-D01-expected-values.json",
+      "sha256": "7A9820C29F32562ACDA6714C0F135737E196618108290CCEF9A4F73AB1AB3656"
+    }
+  ]
+}

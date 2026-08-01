@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "taskId": "M1-D01",
+  "criteria": [
+    "ordinary-bootstrap",
+    "pointer-reaches-runtime-card",
+    "hover-focus",
+    "drag-position",
+    "arm",
+    "remain-armed-above",
+    "disarm",
+    "release-below-no-mutation",
+    "target-complete-once",
+    "explicit-target-stage",
+    "target-cancel",
+    "legal-target-once",
+    "repeated-cycles",
+    "click-compatibility",
+    "keyboard-compatibility",
+    "responsive-layout",
+    "runtime-health"
+  ],
+  "resolutions": [
+    { "id": "16_9", "width": 1920, "height": 1080 },
+    { "id": "16_10", "width": 1920, "height": 1200 },
+    { "id": "ultrawide", "width": 3440, "height": 1440 }
+  ],
+  "minimumRepeatedCycles": 10,
+  "baselineBehavioralFailureMarkers": [
+    "hover-focus:",
+    "remain-armed-above:",
+    "release-below-no-mutation:",
+    "explicit-target-stage:",
+    "repeated-cycles:"
+  ],
+  "requiredScreenshotSuffixesPerResolution": [
+    "resting-hover.png",
+    "armed.png",
+    "target-stage.png"
+  ]
+}
