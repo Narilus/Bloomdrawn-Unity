@@ -1,17 +1,17 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // Start in the planning role rather than OpenCode's unrestricted Build role.
+  // Start every session in the project planning role.
   "default_agent": "bloom-planner",
 
-  // Primary agents may use one read-only helper layer. Helpers may not recurse.
+  // Primary agents may delegate one bounded helper/specialist layer.
   "subagent_depth": 1,
 
-  // Keep project sessions private unless the owner explicitly changes this.
+  // Project sessions remain private unless the owner changes this deliberately.
   "share": "disabled",
 
   "agent": {
-    // Remove broad write-capable escape hatches from this project.
+    // Remove unrestricted write-capable escape hatches.
     "build": {
       "disable": true
     },
@@ -19,12 +19,16 @@
       "disable": true
     },
 
-    // Cheap read-only repository and upstream-documentation workers.
+    // Lightweight read-only helpers remain inside the GPT-5.6 family.
     "explore": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openai/gpt-5.6-luna",
+      "reasoningEffort": "low",
+      "textVerbosity": "low"
     },
     "scout": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openai/gpt-5.6-luna",
+      "reasoningEffort": "low",
+      "textVerbosity": "low"
     }
   }
 }
