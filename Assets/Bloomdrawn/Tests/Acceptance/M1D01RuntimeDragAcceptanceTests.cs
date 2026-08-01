@@ -161,15 +161,50 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.DraggingArmed));
             yield return Move(mouse, PointBelowThreshold(context.DragLayer.PlayArea), 2);
             Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.DraggingDisarmed));
+            var releasePointer = mouse.position.ReadValue();
             Release(mouse.leftButton);
             yield return Frames(4);
 
             before.AssertUnchanged(context.Bootstrap, "release-below-no-mutation");
             Assert.That(context.AcceptedCommandCount, Is.EqualTo(0), "release-below-no-mutation: cancellation accepted a command");
-            Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.Resting));
+            Assert.That(context.Bootstrap.InteractionState == CardInteractionState.Resting ||
+                        context.Bootstrap.InteractionState == CardInteractionState.Hovered,
+                Is.True,
+                "release-below-no-mutation: interaction remained dragging, armed, disarmed, or in target selection");
             AssertSingleViewsMatchHand(context.Bootstrap, "release-below-no-mutation");
             Assert.That(ActiveViews(cardId), Has.Count.EqualTo(1), "release-below-no-mutation: detached/duplicate view remained after cancellation");
-            Evidence("release-below-no-mutation", "pass", context, "card=" + cardId);
+            AssertRestoredFanPose(context.Bootstrap, cardId,
+                context.Bootstrap.InteractionState == CardInteractionState.Hovered && context.Bootstrap.ActiveInteractionCardId == cardId,
+                "release-below-no-mutation");
+
+            var postCancelPointer = mouse.position.ReadValue();
+            Assert.That(Vector2.Distance(postCancelPointer, releasePointer), Is.LessThanOrEqualTo(.01f),
+                "release-below-no-mutation: public pointer moved after release");
+            var raycastTarget = TopRaycast(postCancelPointer);
+            var raycastCard = raycastTarget == null ? null : raycastTarget.GetComponentInParent<CombatCardView>();
+            var hoveredCardId = context.Bootstrap.InteractionState == CardInteractionState.Hovered
+                ? context.Bootstrap.ActiveInteractionCardId
+                : null;
+            if (context.Bootstrap.InteractionState == CardInteractionState.Hovered)
+            {
+                Assert.That(raycastCard, Is.Not.Null,
+                    "release-below-no-mutation: Hovered is valid only when the unchanged public pointer raycasts a restored runtime card");
+                Assert.That(raycastCard.gameObject.activeInHierarchy, Is.True,
+                    "release-below-no-mutation: Hovered raycast target is not an active restored runtime card");
+                Assert.That(ActiveViews(raycastCard.CardId), Has.Count.EqualTo(1),
+                    "release-below-no-mutation: Hovered raycast target does not have exactly one active runtime view");
+                Assert.That(hoveredCardId, Is.EqualTo(raycastCard.CardId),
+                    "release-below-no-mutation: interaction hovered-card identity does not match the real EventSystem raycast target");
+            }
+
+            Evidence("release-below-no-mutation", "pass", context,
+                "card=" + cardId +
+                ",postCancelPointer=" + V(postCancelPointer) +
+                ",raycastTarget=" + (raycastTarget == null ? "<none>" : Hierarchy(raycastTarget)) +
+                ",hoveredRuntimeCardId=" + (hoveredCardId ?? "<none>") +
+                ",raycastRuntimeCardId=" + (raycastCard == null ? "<none>" : raycastCard.CardId) +
+                ",cancelledCardIsRaycastTarget=" + (raycastCard != null && raycastCard.CardId == cardId) +
+                ",zeroMutation=true,singleViews=true,fanRestored=true");
             LogAssert.NoUnexpectedReceived();
         }
 
@@ -579,6 +614,23 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
         {
             var card = ActiveViews(cardId).Single();
             return new RestingPose(card.RectTransform.anchoredPosition, card.RectTransform.localEulerAngles.z);
+        }
+
+        private static void AssertRestoredFanPose(CombatStageRuntimeBootstrap bootstrap, string cardId, bool hovered, string criterion)
+        {
+            var hand = bootstrap.CurrentState.Deck.Hand.ToList();
+            var index = hand.FindIndex(instance => instance.Id == cardId);
+            Assert.That(index, Is.GreaterThanOrEqualTo(0), criterion + ": cancelled card is absent from authoritative hand");
+            var card = ActiveViews(cardId).Single();
+            var handContainer = card.RectTransform.parent as RectTransform;
+            Assert.That(handContainer, Is.Not.Null, criterion + ": restored runtime card is not parented to the authoritative hand container");
+            var width = handContainer.rect.width <= 1 ? 1040 : handContainer.rect.width;
+            var expected = HandFanLayout.Calculate(hand.Count, width, 188f, 22f, 8f)[index];
+            var expectedPosition = expected.Position + (hovered ? Vector2.up * 32f : Vector2.zero);
+            Assert.That(Vector2.Distance(card.RectTransform.anchoredPosition, expectedPosition), Is.LessThanOrEqualTo(1f),
+                criterion + ": cancelled card did not return to its recalculated authoritative fan pose");
+            Assert.That(Mathf.Abs(Mathf.DeltaAngle(card.RectTransform.localEulerAngles.z, expected.Rotation)), Is.LessThanOrEqualTo(.25f),
+                criterion + ": cancelled card rotation did not return to its recalculated authoritative fan pose");
         }
 
         private static bool IsInUsableBounds(RectTransform rect)

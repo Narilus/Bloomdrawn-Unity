@@ -10,8 +10,14 @@
     "path": "Bloomdrawn-Unity.slnx",
     "sha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4"
   },
-  "allowedWorkingTreePaths": [
-    "Bloomdrawn-Unity.slnx",
+  "implementationWorkingTreePaths": [
+    "Assets/Bloomdrawn/Presentation/CardDragLayer.cs",
+    "Assets/Bloomdrawn/Presentation/CombatCardView.cs",
+    "Assets/Bloomdrawn/Presentation/CombatHudView.cs",
+    "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs",
+    "Assets/Bloomdrawn/Presentation/HandInteraction.cs"
+  ],
+  "protectedMaintenancePaths": [
     "Assets/Bloomdrawn/Tests/Acceptance.meta",
     "Assets/Bloomdrawn/Tests/Acceptance/",
     "Tools/Acceptance/",

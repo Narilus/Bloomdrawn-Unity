@@ -17,7 +17,7 @@
     },
     {
       "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs",
-      "sha256": "DC78E85018C926513E5FE7EEF38508FBBD70A742197006A5E43A6B9FAD0FBEB9"
+      "sha256": "9A5B93AC2E5E2AB88CBC6E8267965AF6EE210945783C9D8698C539F10D053994"
     },
     {
       "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs.meta",
@@ -25,11 +25,11 @@
     },
     {
       "path": "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
-      "sha256": "C149045A068A0FAE3FD601C12976A281EDE91EEE4E24AF3F856DC02817816434"
+      "sha256": "65205834097DFE1AD7AE32ECFEE8E593EFED0BAA5DB38D9BBD02355E991E1156"
     },
     {
       "path": "Tools/Acceptance/M1-D01-runner-contract.json",
-      "sha256": "4EA4D38AECFBC439D7EF6C204C37165907462C3E1A7CCFEF6D14B4BE3A900E7E"
+      "sha256": "53E33B2F5F64EE5FBAA0723A30D1816F8D8338FA702598DE5A5362918740284E"
     },
     {
       "path": "Tools/Acceptance/M1-D01-expected-values.json",
