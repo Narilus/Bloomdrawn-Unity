@@ -5,6 +5,8 @@
 **Planning worktree:** `D:\Dev\Projects\Bloomdrawn-Unity-M1D01`  
 **Acceptance manifest:** `acceptance/manifests/M1-D01-dd28-runtime-drag.yaml`
 
+**Owner amendment:** The release-below, protected-runner dirty-state, workforce-v4, and repair-accounting corrections below were approved after implementation exposed over-constrained acceptance encoding and obsolete workforce requirements. These corrections do not weaken DD-28 or broaden M1-D01 scope.
+
 ## 1. Objective and Player-Visible Outcome
 
 Restore the already-approved M1H/DD-28 tactile card interaction in the committed `Assets/Scenes/CombatStage.unity` ordinary runtime. Opening that scene and pressing Play must automatically bootstrap the fixture combat; an actual runtime-spawned card must receive real Unity EventSystem/Input System pointer input, rise on hover/focus, follow an upward drag, arm and disarm at the responsive Play Area boundary, cancel without gameplay mutation, cast a target-complete card once, or stage an explicit-target card until a legal enemy is selected.
@@ -36,6 +38,8 @@ The Builder must verify that HEAD descends from `6e910f7`, identify all owner-ow
 - **Preserve current non-drag compatibility for M1-D01.** A click or number key on a target-complete card continues to submit once; a click or number key on an explicit-target card continues to stage target selection; selecting a legal enemy submits once; Escape/right-click continues to cancel. M1-D01 proves no regression in those paths while restoring drag.
 - This preservation is **not** approval of the current one-step path as final UX. `docs/DESIGN.md` §8.5 describes click/select → inspect → Play Area or Enter/Space confirmation. Strict alignment is a separate follow-up discrepancy requiring its own scoped task or decision; do not implement it here.
 - **Protected executable acceptance is mandatory.** The manifest alone is not sufficient for this first controlled trial.
+- **Disarmed release is complete when drag commitment ends and the authoritative hand presentation is restored.** After normal EventSystem processing, the global interaction state may be `Resting` or `Hovered`. `Hovered` is valid only when the unchanged public pointer genuinely raycasts a real restored runtime card and the hovered card identity matches that real EventSystem raycast target. Product code must not suppress legitimate hover merely to force `Resting`.
+- **Workforce v4 owns validation through three layers:** protected executable acceptance during implementation, owner-approved `bloom-sol-specialist` escalation when the repair policy permits it, and independent final `bloom-auditor`. The retired advisory Checker is not part of M1-D01 validation or completion.
 
 ### Retained prerequisite (gating, not Builder work)
 
@@ -46,6 +50,8 @@ Before invoking the Builder, the project owner or an external workflow must add 
 - no product implementation, replacement scene/UI, session injection, or expected-result fixture inside that protected file.
 
 The Builder is denied edits to `Assets/Bloomdrawn/Tests/Acceptance/**` and `acceptance/**`. Record the harness commit/hash in the Builder handoff. If the harness is absent, mutable by the Builder, fails against the known baseline for a reason unrelated to the reported drag defect, or requires a contract change, **do not invoke or continue the Builder**; return to the owner/Planner.
+
+The protected C05 test currently asserts that disarmed release must end in exactly `CardInteractionState.Resting`. That assertion is stricter than the approved player-visible contract because normal EventSystem processing may immediately and legitimately hover a restored runtime card beneath the unchanged pointer. The protected Acceptance Engineer must correct C05 to accept `Resting` or a raycast-proven `Hovered` state while retaining every mutation, view-identity, fan-restoration, and public-input assertion. This is correction of erroneous acceptance encoding, not weakening of DD-28. The Builder must not edit the protected test or runner.
 
 ## 4. Verified Investigation Evidence
 
@@ -105,6 +111,7 @@ Before the first product edit, the Builder must reproduce the defect through the
 - `armed` means the pointer/card has crossed upward past the responsive Play Area threshold and remains above it; moving below disarms. It is not limited to being inside a bounded rectangle.
 - Hover, focus, drag, armed/disarmed, and target staging remain presentation-only. Only one complete command reaching the existing sink may mutate authoritative state.
 - Runtime view reconciliation preserves stable card identity and exactly one active visual representation per authoritative hand card, except that a staged card may be detached from the fan but must not also have a duplicate interactive hand view.
+- Successful disarmed release returns the dragged card to its recalculated authoritative fan position, leaves exactly one active view for every authoritative hand card, accepts no command, and changes no authoritative Mana, pile, gameplay-event, canonical-state, resource, or named-RNG-stream state. The interaction must no longer be dragging, armed, disarmed, or in target selection. A final global state of `Resting` is valid; `Hovered` is also valid only when the unchanged public pointer genuinely raycasts the matching restored runtime card.
 
 No new public gameplay command, engine/content/application schema, persistence contract, assembly dependency, or production content is permitted.
 
@@ -162,6 +169,21 @@ The protected harness must use virtual pointer/keyboard devices through public I
 
 The manifest contains the complete black-box criteria. Every criterion is mandatory.
 
+### Protected runner dirty-state policy
+
+Protected acceptance must be executable against in-progress Builder work and must never require product files to be committed merely to run the gate.
+
+For every run, the owner-controlled runner must:
+
+- record the complete pre-run dirty path set and SHA-256 hashes;
+- verify all protected acceptance hashes before and after execution;
+- allow only the owner-declared `Bloomdrawn-Unity.slnx` exception, protected acceptance maintenance owned outside the Builder, and the exact active M1-D01 implementation path allowlist;
+- for the current Builder iteration, recognize exactly these product paths as the active implementation allowlist: `Assets/Bloomdrawn/Presentation/CombatCardView.cs`, `Assets/Bloomdrawn/Presentation/CardDragLayer.cs`, `Assets/Bloomdrawn/Presentation/CombatHudView.cs`, `Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs`, and `Assets/Bloomdrawn/Presentation/HandInteraction.cs`;
+- fail closed on any dirty path outside those declared categories;
+- record and compare complete pre-run and post-run Git state and hashes so Unity-created files, newly dirty files, or incidental modifications still fail closed.
+
+The runner may not infer permission from a broad directory alone. Any later task-authorized developer test or conditionally allowed scene/tooling path must be named in the exact run allowlist after its Section 7 precondition is satisfied. Protected acceptance maintenance remains external to Builder ownership and must remain hash-controlled.
+
 ## 10. Developer Validation and Evidence
 
 ### Approved Editor/Pipeline workflow
@@ -196,9 +218,15 @@ Do not invoke `bloom.load-combat-fixture` in the acceptance run.
 
 Place transient Builder evidence under `Logs/M1-D01/Builder/` (not source-controlled): focused/full XML, command outputs, compile/Console state, public-input diagnostic trace, state/event/RNG deltas, and screenshots at 1920×1080, 1920×1200, and 3440×1440 showing at least resting/hover, armed non-colour cue, and explicit-target staging/highlights. Label each screenshot with resolution, state, and tested commit in an adjacent index/log; do not alter gameplay UI solely to label evidence.
 
-## 11. Mandatory Mid-Work Checker
+## 11. Workforce-v4 Validation Ownership
 
-After Unity compiles with zero errors and focused developer tests pass, but before final full-suite/acceptance claims, invoke `bloom-checker` exactly once with the frozen packet, manifest, current diff, focused results, public-input trace, and current screenshots. Address every `REVISE` finding or provide evidence why it is unsupported. A `BLOCKED` finding returns to owner/Planner. Checker `READY` is advisory and is not acceptance.
+M1-D01 uses the installed workforce-v4 validation model:
+
+1. the protected executable acceptance gate runs during Builder implementation against the exact in-progress implementation allowlist;
+2. after two materially distinct failed attempts on one genuine protected blocker, the Builder may request owner approval for `bloom-sol-specialist` under Section 12;
+3. the independent read-only `bloom-auditor` performs final verification and is the only role that may issue `PASS`.
+
+No advisory Checker invocation, verdict, artifact, or finding disposition is required.
 
 ## 12. Repair Budget, Stop Conditions, and Escalation
 
@@ -206,8 +234,10 @@ After Unity compiles with zero errors and focused developer tests pass, but befo
 
 - At most **three** Builder repair cycles total after the first protected acceptance run.
 - A cycle must contain a materially new hypothesis, a bounded change, and new observed evidence.
-- After **two materially distinct failed attempts on the same narrow blocker**, the Builder may request owner approval for `bloom-specialist` using the structured handoff required by the Builder role.
+- After **two materially distinct failed attempts on the same narrow blocker**, the Builder may request owner approval for `bloom-sol-specialist` using the structured handoff required by the Builder role.
 - After three materially similar failures, no new evidence, or exhaustion of the total budget, stop `BLOCKED`; do not loop or weaken acceptance.
+
+Attempts directed solely at forcing C05 from a valid, pointer-driven `Hovered` state into exact `Resting` were attempts against an invalid over-constrained assertion. They do not justify further product changes and do not count as evidence that the approved player-visible release-below contract is unsatisfied. This accounting correction does not reset or broaden the general repair policy. After the protected C05 test and runner are corrected by the Acceptance Engineer, Luna must rerun the protected gate and continue only for genuine remaining behavioural failures.
 
 ### Immediate stop conditions
 
@@ -230,7 +260,7 @@ The read-only Auditor must:
 3. independently rerun the protected harness and required gates in a verified `-automated` Editor;
 4. independently start from the committed `CombatStage` ordinary entrypoint—no fixture CLI/session injection—and capture protected evidence under `Logs/M1-D01/Auditor/`;
 5. verify real EventSystem pointer delivery to an actual runtime-spawned card and all manifest criteria at 16:9, 16:10, and 3440×1440;
-6. compare pre/post canonical state, Mana, piles, event history/count, command acceptance count, and all named RNG stream states for cancel/staging paths;
+6. compare pre/post canonical state, Mana, piles, event history/count, command acceptance count, and all named RNG stream states for cancel/staging paths; for disarmed release, accept `Hovered` only when the unchanged public pointer's real EventSystem raycast target matches the reported restored runtime card;
 7. inspect screenshot evidence for real hover rise, non-colour-only arm cue, staged-card uniqueness, legal target highlights, bounds/readability, and no drift/jump/duplicate;
 8. verify click/keyboard current behavior remains functional while recording strict §8.5 alignment as an out-of-scope follow-up, not a failure;
 9. verify no missing scripts, unexpected Console errors, Editor-only runtime dependency, fixture leak, or build failure;
@@ -248,7 +278,6 @@ The Builder must not claim acceptance or commit. Return:
 - Editor readiness/compilation fields and every command/test result with pass/fail counts and artifact paths;
 - ordinary-runtime public-input trace and three-resolution screenshot index;
 - cancel/stage/accept state, event, command-count, and RNG evidence;
-- `bloom-checker` verdict and disposition of each finding;
 - repair cycles used and any Specialist handoff/result;
 - final Git status/diff summary, unresolved risks, and the strict §8.5 click/keyboard follow-up;
 - explicit statement: “Not self-certified; awaiting Bloom Auditor verdict.”
