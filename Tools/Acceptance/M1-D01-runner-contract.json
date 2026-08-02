@@ -15,7 +15,9 @@
     "Assets/Bloomdrawn/Presentation/CombatCardView.cs",
     "Assets/Bloomdrawn/Presentation/CombatHudView.cs",
     "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs",
-    "Assets/Bloomdrawn/Presentation/HandInteraction.cs"
+    "Assets/Bloomdrawn/Presentation/HandInteraction.cs",
+    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs",
+    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta"
   ],
   "protectedMaintenancePaths": [
     "Assets/Bloomdrawn/Tests/Acceptance.meta",
