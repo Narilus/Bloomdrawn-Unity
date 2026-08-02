@@ -1,11 +1,11 @@
 # M1-D01 — Restore the Real DD-28 Ordinary-Runtime Card Drag Path
 
-**Status:** FROZEN; Builder implementation is present and behaviorally green; **BLOCKED on protected acceptance infrastructure recovery** until Section 15 is implemented and its recovered gate passes.
+**Status:** FROZEN; Builder implementation is present and behaviorally green; **BLOCKED on protected acceptance infrastructure recovery** until Sections 15–16 are implemented and the recovered gate passes.
 **Authority baseline:** `6e910f7811dc3b7f07aa5d30b7ca574d561b45a6` (`fix/m1-dd28-runtime-drag`; source baseline and merge-base both verified at planning time).  
 **Planning worktree:** `D:\Dev\Projects\Bloomdrawn-Unity-M1D01`  
 **Acceptance manifest:** `acceptance/manifests/M1-D01-dd28-runtime-drag.yaml`
 
-**Owner amendments:** The release-below, protected-runner dirty-state, workforce-v4, repair-accounting, and Section 15 acceptance-infrastructure recovery corrections were approved after implementation exposed over-constrained acceptance encoding, obsolete workforce requirements, and a repeatable Pipeline result-collector failure. None changes DD-28, the protected behavioral criteria, or the existing Builder implementation.
+**Owner amendments:** The release-below, protected-runner dirty-state, workforce-v4, repair-accounting, Section 15 acceptance-infrastructure recovery, and Section 16 narrow recovery-continuation corrections were approved after implementation exposed over-constrained acceptance encoding, obsolete workforce requirements, a repeatable Pipeline result-collector failure, and two impossible ownership assumptions in the first recovered run. None changes DD-28, the protected behavioral criteria, or the existing Builder implementation.
 
 ## 1. Objective and Player-Visible Outcome
 
@@ -425,3 +425,109 @@ Immediate return to owner/Planner is required if public TestRunnerApi cannot sup
 **Implementation handoff role:** protected `bloom-acceptance-engineer`, not Builder or Sol. Its return must list exact files/hashes, public APIs used, lifecycle/duplicate strategy, self-diagnostic results, both fresh-run IDs/PIDs/logs, confirmation classification, XML/JSON/evidence paths, Console/log/audio-watch results, shutdown proof, complete Git integrity, and any stop condition.
 
 **Acceptance-engineering handoff:** after one successful validation run and one successful confirmation run are hash-frozen, return control to the owner/Planner. The owner may then resume the Builder only for the packet's remaining validation/handoff—without implementation repair—and may invoke the Auditor only after all required gates are complete. Never invoke either role automatically.
+
+## 16. Frozen Narrow Follow-up — Solution Lifecycle and Run-directory Ownership
+
+### 16.1 Purpose, authority, baseline, and retained evidence
+
+This owner-approved follow-up corrects exactly two infrastructure contracts exposed by the first Section 15 validation attempt: the owner-managed solution lifecycle and the runner/bridge run-directory collision. It supersedes only contrary Section 9 or Section 15 wording that requires `Bloomdrawn-Unity.slnx` to remain unchanged while the task-owned Editor is alive, treats that file as a general dirty-path exception, requires the bridge output directory not to exist when the runner must already own it, or places bridge files directly in the runner-owned run root. Every other Section 15 requirement remains frozen.
+
+Continuation authority baseline is commit `5b35f3f95699a41d2be01af502304e54cdbc9dd3` on `fix/m1-dd28-runtime-drag`, tracking `origin/fix/m1-dd28-runtime-drag` at `0/0`, with an empty index. Unity is stopped. The existing product, Builder-test, and protected-test hashes recorded by the failed run remain unchanged. Planning must not restore the solution, edit implementation, or start Unity.
+
+Failed run `d1cb15d2baa243a1bcaf0e026ff29c3b` and Editor PID `24420` remain permanent diagnostic evidence under `Logs/M1-D01/Acceptance/runs/d1cb15d2baa243a1bcaf0e026ff29c3b`. It classified `INFRASTRUCTURE_FAILURE`; Unity `6000.5.5f1` imported with zero compile errors, emitted no audio-lock signature, wrote a 41,507-byte task-local log, and exited gracefully. The fixture never started, so this attempt is neither of the two required successful fresh runs and supplies no behavioral result.
+
+### 16.2 Exact `.slnx` diff classification and one-time continuation precondition
+
+The recorded pre-run owner state was an existing unstaged `Bloomdrawn-Unity.slnx`, SHA-256 `045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4`. It was UTF-8 with BOM, CRLF-only, 485 bytes. The stopped post-run file is 556 bytes, SHA-256 `16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35`, and differs from the pre-run bytes by exactly this one 71-byte CRLF-terminated line between the Presentation and Application entries:
+
+```diff
+   <Project Path="Bloomdrawn.Presentation.csproj" />
++  <Project Path="Bloomdrawn.M1D01.AcceptanceInfrastructure.csproj" />
+   <Project Path="Bloomdrawn.Application.csproj" />
+```
+
+Removing exactly that line from the current bytes reproduces the recorded 485-byte pre-run hash. BOM, CRLF encoding, all existing entries, and their order are otherwise identical. Therefore the failed-run delta is classified as **Unity-generated solution/project membership regeneration for the newly imported acceptance-infrastructure assembly**, not newline normalization, arbitrary formatting, or a semantic owner edit.
+
+Against committed HEAD, the complete current diff also reorders existing project entries and includes `Assembly-CSharp.csproj`; those differences were already present in the owner-managed pre-run state and are not attributable to PID `24420`. The continuation must preserve that owner state rather than restore the committed blob.
+
+Before any new Editor launch, the Acceptance Engineer is authorized and required to reconstruct the exact recorded pre-run bytes by removing only the identified infrastructure-project line, verify the resulting length/encoding/SHA-256 above, restore those bytes atomically, and prove the resulting Git status is the same pre-run `.M` status. This is restoration of owner bytes under this lifecycle, not an implementation edit. Any mismatch or need to infer other owner content is an immediate stop.
+
+### 16.3 Frozen owner-managed solution lifecycle
+
+`Bloomdrawn-Unity.slnx` is not an implementation path and must never be staged, committed, retained in Unity-regenerated form, normalized, or restored from HEAD. It is the sole operational lifecycle exception; no other dirty file gains backup, restoration, hiding, normalization, or rollback permission.
+
+For each validation and confirmation run, the runner must:
+
+1. Before launch, record exact existence, regular-file status, bytes, SHA-256, length, BOM/newline facts, creation/write timestamps, Git status, and exact diff against HEAD. Copy the byte-exact backup to an OS temporary location outside the project and outside every Unity-authored evidence/cache path; record and re-verify the backup path, length, and hash.
+2. Start a byte/hash/metadata watcher before launching Unity. Until the task-owned PID is established, any solution change fails closed. While that exact owned Unity PID is alive, mutation is tolerated only as a candidate Unity regeneration; the runner never writes the solution during this interval and continuously rejects another Unity process owning the project.
+3. Attribute a tolerated candidate to Unity regeneration only when every observed change occurs inside the exact owned-PID lifetime, the path remains the expected regular `.slnx` file, its XML is valid, it contains only unique relative `.csproj` project-membership entries, and its additions/removals/reordering correspond to Unity-generated project/assembly membership present for that import. If operating-system writer identity evidence identifies any writer other than the exact owned Unity PID or its verified Unity-owned regeneration child, fail closed. Any other XML/content change, missing interval evidence, mutation outside that lifetime, competing project-owning Unity process, unexplained writer evidence, deletion, reparse/redirected path, or unexpected replacement also fails closed.
+4. On every success, failure, timeout, watchdog trigger, or abort, first contain only the task-owned PID under Section 15 and prove that PID, recorded children, and project Pipeline ownership are gone. Never restore while Unity or an uncontained child may still write the file.
+5. After proven process exit and before final repository comparison, capture the observed post-run bytes, SHA-256, exact pre/post diff, length, BOM/newline facts, creation/write timestamps, and last watcher observation. Preserve those facts in the runner-owned run evidence even when no mutation occurred.
+6. Restore from the verified external backup by writing the backup bytes to one uniquely named same-directory temporary file, flushing it durably, atomically replacing/moving it over `Bloomdrawn-Unity.slnx`, and removing any residual temporary file. This temporary is an operational atomic-write artifact only, not an authorized implementation path; it must never survive finalization or appear in final Git state.
+7. Re-read and verify byte-for-byte equality, SHA-256, length, metadata facts required by the contract, exact diff against HEAD, and Git status against the pre-run record. Final integrity comparison occurs only after this restoration. Restoration failure, a missing backup, residual temporary, or any final bytes/status/diff mismatch is `INFRASTRUCTURE_FAILURE`.
+
+The lifecycle evidence must identify run ID, HEAD, branch, task-owned PID, backup and restoration timestamps, pre/observed-post/restored hashes and lengths, exact observed mutation diff, atomic-restore outcome, and final Git comparison. A run cannot return `PASS` until this evidence is durable. If the owned PID cannot be proven exited, the runner must not race it by restoring; it contains as allowed, reports the unresolved state, and stops for the owner.
+
+### 16.4 Frozen run-root and bridge-child ownership
+
+Each attempt uses a fresh unique root:
+
+`Logs/M1-D01/Acceptance/runs/<run-id>/`
+
+The outer runner exclusively creates and owns that root, the task-local `Editor.log`, all process/Git/Console/watchdog/solution-lifecycle/final-classification evidence, and an atomic `run-ownership.json` sentinel. The sentinel is created before launch with task ID, run ID, tested HEAD, branch, root path, creation UTC, and expected PID state `unassigned`; immediately after launch ownership is proven, the runner atomically updates it to `owned` with exact Editor PID, project path, Unity version, `automated=true`, command-line hash, and log path. The bridge may start only from the `owned` state while that PID is alive and matches the requested project/run.
+
+Before bridge start, the root may contain only this exact runner-owned bootstrap set:
+
+- `run-ownership.json`
+- `Editor.log`
+- `commands.ndjson`
+- `lifecycle-observations.ndjson`
+- `git-before.txt`
+- `working-tree-before.json`
+- `protected-hashes-before.json`
+- `slnx-pre-run.json`
+- `slnx-backup.json`
+- `editor-ownership.json`
+- `recompile-status.json`
+- `editor-health.json`
+- `console-startup-to-pretest.json`
+
+The runner contract may rename a listed evidence file only if the packet and manifest identity remain unambiguous and the contract enumerates the exact replacement; it may not accept globs, arbitrary files, or a broad pre-existing-directory allowlist. Any other pre-existing root entry, mismatched/malformed sentinel, wrong run ID/HEAD/branch/PID, pre-existing `bridge` child, symlink/reparse redirection, or non-empty unrecognized location fails closed.
+
+The bridge receives the validated run root and run ID, validates the sentinel and exact bootstrap inventory, then exclusively creates and owns:
+
+`Logs/M1-D01/Acceptance/runs/<run-id>/bridge/`
+
+All bridge request/status/heartbeat/lifecycle state, completion claim, callback and duplicate diagnostics, NUnit XML, result JSON, copied runtime trace/screenshots, evidence inventory, and bridge self-diagnostics live under that child. The runner never pre-creates or writes the child; after creation it reads it only for polling and validation. The bridge never writes the run root or any sibling except through its existing protected test's frozen runtime-evidence source contract. Atomic bridge temporary files remain inside the child and must not survive terminal completion. Path normalization must prove the child is the canonical non-reparse descendant of the matching root.
+
+Bridge self-diagnostics must additionally prove rejection of a mismatched sentinel, an unexpected root entry, a pre-existing bridge child, and an redirected/non-canonical child; successful creation in a valid synthetic ownership layout; and no bridge write outside that child. These diagnostics may exercise file-lifecycle validation only and must not synthesize or infer a gameplay result.
+
+Validation and confirmation require distinct run IDs, roots, bridge children, sentinels, task-local logs, Editor PIDs, lifecycle files, and artifacts. Neither may reuse, truncate, overwrite, or transform failed-run or earlier successful evidence.
+
+### 16.5 Unchanged implementation scope and non-goals
+
+The Acceptance Engineer's implementation path set remains exactly Section 15.3: modify only the runner, runner contract, and protected lock; create/maintain only the five listed acceptance-infrastructure asset/meta paths. No product, Builder test, protected behavioral test, package, project setting, scene, solution, existing assembly definition, or additional source path is authorized. `Bloomdrawn-Unity.slnx` restoration and its ephemeral atomic temporary are operational lifecycle actions only and are excluded from the implementation diff/commit set.
+
+The protected source/meta, all 13 methods/assertions, ordinary committed `CombatStage` entrypoint, real Play Mode, public Input System/EventSystem delivery, screenshots, trace, zero-error policy, result integrity, duplicate policy, watchdog, limits, exact-PID containment, classifications, and Auditor ownership remain unchanged. Failed-run evidence must be preserved.
+
+### 16.6 Continuation validation, repair budget, and revised stop conditions
+
+The Acceptance Engineer has one narrow continuation repair cycle: correct only the two contracts above within the existing eight infrastructure paths, perform static validation, then run one fresh validation followed—only after it passes—by one fresh confirmation. There is no automatic retry or third run. This continuation never invokes Builder, Sol Specialist, Auditor, or Git Steward; there is no Sol escalation trigger for protected acceptance engineering. Any implementation/specification conflict returns directly to the owner/Planner.
+
+Before the first corrected run, verify the failed evidence remains intact, perform the one-time solution restoration in §16.2, and re-verify every protected, product, Builder-test, owner-managed, and infrastructure hash. Then require the original Section 15 static checks and all original bridge/behavioral evidence for each successful run. For each run independently prove captured Unity solution mutation or an explicit no-mutation observation, post-shutdown byte-exact owner restoration, matching final Git status/hash/diff, no other dirty-file change, clean task-owned shutdown, exact `13 passed, 0 failed, 0 skipped, 0 inconclusive`, complete XML/JSON/trace/screenshots, zero unexpected Console/log errors, completed-once lifecycle, and no divergent duplicate. Compare both successful runs as Section 15 requires.
+
+Stop immediately without scope expansion or automatic retry when any existing Section 15 stop condition occurs, or when:
+
+- the current solution cannot be restored exactly to the verified 485-byte pre-run owner form before launch;
+- the external backup cannot be created/read/hash-verified, the watcher starts late, or writer/lifetime attribution is incomplete;
+- the solution changes before owned-PID establishment, after owned-PID exit but before runner restoration, or while another project-owning Unity process exists;
+- the observed solution delta is not valid and explainable Unity project-membership regeneration;
+- the solution disappears, redirects, is unexpectedly replaced, or cannot be restored atomically after proven shutdown;
+- final solution bytes, SHA-256, Git status, or diff differ from that run's pre-run record, or an atomic temporary remains;
+- the run root/sentinel/bootstrap inventory is invalid, the bridge child pre-exists, either owner writes outside its frozen area, or any unexpected path appears;
+- the first corrected run is a genuine behavioral failure, reproduces either audio-lock signature, reaches the log cap, has incomplete evidence, or otherwise fails; or
+- the required confirmation differs materially, reuses any first-run identity/artifact/process, or fails any gate.
+
+### 16.7 Acceptance Engineer continuation handoff
+
+Return the complete Section 15.10 handoff plus: exact failed-run preservation path; the pre-run/current `.slnx` classification and hashes; one-time restoration proof; for both successful runs the solution pre/observed-post/restored hashes, exact captured diff and timestamps, external backup verification, atomic restoration record, final Git equality, run-root sentinel and inventory, bridge-child inventory, run IDs, PIDs, logs, lifecycle files, shutdown proof, and cross-run comparison. List final hashes for all eight authorized infrastructure files and the protected source/meta before/after hashes. Confirm no non-authorized implementation path changed and state explicitly: **infrastructure validation only; this does not certify M1-D01 product completion.** Stop after handoff and never invoke the Builder or Auditor automatically.

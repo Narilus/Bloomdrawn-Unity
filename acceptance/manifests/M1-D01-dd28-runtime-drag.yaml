@@ -233,7 +233,11 @@ protected_runner_dirty_state_policy:
   permitted_dirty_categories:
     owner_declared_exception:
       path: Bloomdrawn-Unity.slnx
-      sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+      implementation_path: false
+      lifecycle_only: acceptance_infrastructure_recovery_amendment.narrow_follow_up.owner_managed_solution_lifecycle
+      pre_continuation_sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+      final_state_must_equal_each_run_pre_state: true
+      general_restore_or_normalize_permission: false
     protected_acceptance_maintenance:
       owner: protected_acceptance_engineer
       paths:
@@ -540,11 +544,12 @@ acceptance_infrastructure_recovery_amendment:
       - zero unexpected Console or dedicated-log errors asserts exceptions
       - no audio assertion or log/evidence limit breach
       - identical-or-zero duplicate deliveries and no divergent duplicate
-      - protected and complete working-tree hashes unchanged
+      - protected and complete working-tree hashes unchanged after the frozen byte-exact solution restoration
       - clean task-owned Editor shutdown and no child or Pipeline process
     prior_13_of_13_is_diagnostic_only: true
   rollback:
     automatic_source_rollback: false
+    owner_managed_solution_lifecycle_is_not_source_rollback: true
     runtime_abort_actions:
       - cancel exact persisted job when reachable
       - exit Play Mode
@@ -562,7 +567,7 @@ acceptance_infrastructure_recovery_amendment:
     - stale or concurrent test execution cannot be rejected
     - missing corrupt partial oversized or divergent result evidence
     - any unexpected Console or dedicated-log Error Exception or Assert
-    - any repository or protected hash mutation
+    - any unauthorized repository mutation, protected hash mutation, or owner-managed solution mutation not restored exactly under the narrow follow-up lifecycle
     - one clean confirmation attempt reproduces the native audio assertion
   auditor_anti_facade:
     - unchanged behavioral source and meta hashes
@@ -589,3 +594,219 @@ acceptance_infrastructure_recovery_amendment:
     builder_resume_after_handoff: remaining_validation_and_handoff_only
     auditor_after_all_required_gates: true
     automatic_role_invocation: false
+  narrow_follow_up:
+    frozen: true
+    authority_baseline:
+      commit: 5b35f3f95699a41d2be01af502304e54cdbc9dd3
+      branch: fix/m1-dd28-runtime-drag
+      upstream: origin/fix/m1-dd28-runtime-drag
+      ahead: 0
+      behind: 0
+      index_empty: true
+      unity_stopped: true
+    scope:
+      corrects_only:
+        - owner_managed_slnx_lifecycle
+        - runner_root_and_bridge_child_ownership
+      changes_product_behavior: false
+      changes_protected_test_or_assertions: false
+      changes_builder_implementation: false
+      additional_implementation_paths_authorized: false
+    failed_attempt:
+      run_id: d1cb15d2baa243a1bcaf0e026ff29c3b
+      editor_pid: 24420
+      classification: INFRASTRUCTURE_FAILURE
+      unity: 6000.5.5f1
+      compile_errors: 0
+      audio_lock_signatures: 0
+      editor_log_bytes: 41507
+      graceful_editor_exit: true
+      fixture_started: false
+      counts_as_required_fresh_run: false
+      evidence_must_be_preserved: true
+      evidence_root: Logs/M1-D01/Acceptance/runs/d1cb15d2baa243a1bcaf0e026ff29c3b
+    slnx_diff_evidence:
+      path: Bloomdrawn-Unity.slnx
+      pre_run:
+        sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+        bytes: 485
+        encoding: UTF-8 with BOM
+        newlines: CRLF only
+        git_status: ' M'
+      post_run:
+        sha256: 16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35
+        bytes: 556
+        added_exact_line: '  <Project Path="Bloomdrawn.M1D01.AcceptanceInfrastructure.csproj" />'
+      classification: Unity-generated solution project-membership regeneration for the newly imported acceptance-infrastructure assembly
+      newline_or_format_normalization: false
+      unexpected_semantic_owner_edit: false
+      committed_diff_note: Reordering and Assembly-CSharp.csproj membership predated PID 24420 and belong to the owner-managed pre-run state.
+      one_time_prelaunch_restore:
+        remove_only_identified_line: true
+        verify_exact_pre_run_bytes_hash_encoding_and_git_status: true
+        restore_committed_blob: false
+        planning_may_restore: false
+    owner_managed_solution_lifecycle:
+      sole_exception_path: Bloomdrawn-Unity.slnx
+      implementation_or_commit_path: false
+      before_launch_capture:
+        - existence_and_regular_file_identity
+        - exact_bytes_sha256_and_length
+        - bom_and_newline_facts
+        - creation_and_write_timestamps
+        - git_status_and_exact_head_diff
+      external_backup:
+        byte_exact: true
+        outside_project_and_unity_authored_paths: true
+        path_length_and_hash_recorded: true
+      watcher:
+        starts_before_editor_launch: true
+        runner_writes_solution_while_editor_alive: false
+        tolerated_mutation_window: exact_task_owned_unity_pid_lifetime_only
+        reject_competing_project_unity_process: true
+        candidate_regeneration_requirements:
+          - expected regular non_reparse path remains
+          - valid slnx XML with only unique relative csproj membership entries
+          - additions removals and ordering correspond to Unity generated project membership
+          - any available OS writer identity names only the exact owned Unity PID or verified Unity regeneration child
+          - no unexplained content or writer evidence
+      after_shutdown_order:
+        - prove owned_pid_children_and_pipeline_absent
+        - capture post_run_bytes_hash_diff_timestamps_length_and_encoding
+        - verify_external_backup
+        - durable_same_directory_temp_write
+        - atomic_replace_or_move
+        - remove_residual_temp
+        - verify_byte_exact_hash_length_git_status_and_head_diff_equal_pre_run
+        - perform_final_repository_comparison
+      ephemeral_restore_temp:
+        operational_only: true
+        implementation_path: false
+        must_not_survive_or_appear_in_final_git_state: true
+      fail_closed:
+        - mutation outside exact owned PID lifetime
+        - competing project-owning Unity process or incomplete attribution
+        - deletion redirection unexpected replacement or unexplained content
+        - backup missing unreadable or hash mismatch
+        - restoration failure or residual temporary
+        - final bytes hash status or diff differs from pre-run
+      never_retain_or_commit_regenerated_form: true
+      does_not_extend_to_other_dirty_paths: true
+    run_directory_ownership:
+      root: Logs/M1-D01/Acceptance/runs/<run-id>
+      root_owner: outer_runner
+      runner_sentinel:
+        path: run-ownership.json
+        atomic: true
+        initial_fields:
+          - task_id
+          - run_id
+          - tested_head
+          - branch
+          - root_path
+          - creation_utc
+          - expected_pid_state_unassigned
+        owned_fields:
+          - exact_editor_pid
+          - project_path
+          - unity_version
+          - automated_true
+          - command_line_hash
+          - task_local_log_path
+      exact_permitted_bootstrap_entries:
+        - run-ownership.json
+        - Editor.log
+        - commands.ndjson
+        - lifecycle-observations.ndjson
+        - git-before.txt
+        - working-tree-before.json
+        - protected-hashes-before.json
+        - slnx-pre-run.json
+        - slnx-backup.json
+        - editor-ownership.json
+        - recompile-status.json
+        - editor-health.json
+        - console-startup-to-pretest.json
+      arbitrary_preexisting_entries_allowed: false
+      bridge_child:
+        path: bridge
+        created_and_owned_exclusively_by_bridge: true
+        runner_precreates_or_writes: false
+        runner_reads_for_polling_and_validation_only: true
+        owns:
+          - request_status_heartbeat_and_lifecycle
+          - completion_claim
+          - callback_and_duplicate_diagnostics
+          - result_xml_and_json
+          - copied_runtime_trace_and_screenshots
+          - evidence_inventory
+          - bridge_self_diagnostics
+        atomic_temporary_files_confined_to_child: true
+        canonical_non_reparse_descendant_required: true
+        self_diagnostics:
+          - mismatched_sentinel_rejected
+          - unexpected_root_entry_rejected
+          - preexisting_bridge_child_rejected
+          - redirected_or_noncanonical_child_rejected
+          - valid_synthetic_ownership_layout_created
+          - no_bridge_write_outside_child
+          - does_not_synthesize_or_infer_gameplay_result
+      fail_closed:
+        - malformed_or_mismatched_sentinel
+        - unexpected_bootstrap_entry
+        - preexisting_bridge_child
+        - owner_write_outside_frozen_area
+        - path_redirection_or_unexpected_entry
+      independent_runs_require_distinct:
+        - run_id
+        - root
+        - sentinel
+        - bridge_child
+        - task_local_log
+        - editor_pid
+        - lifecycle_and_result_artifacts
+    authorized_paths_exact_unchanged: true
+    continuation_validation:
+      preserve_failed_attempt_evidence: true
+      restore_verified_owner_slnx_before_any_launch: true
+      successful_fresh_runs_required: 2
+      first_failed_attempt_counts: false
+      confirmation_only_after_validation_pass: true
+      each_run_requires:
+        - exact fresh 13 passed 0 failed 0 skipped 0 inconclusive
+        - complete XML JSON public-input trace and screenshots
+        - zero unexpected Console and dedicated-log errors
+        - completed-once lifecycle and no divergent duplicate
+        - solution mutation or explicit no-mutation captured
+        - exact pre-run solution bytes restored after proven shutdown
+        - final Git state equals pre-run and no other dirty file changed
+        - all original bridge watchdog evidence behavioral and shutdown requirements
+      compare_both_runs: true
+    finite_repair_budget:
+      continuation_cycles: 1
+      automatic_retries: 0
+      validation_runs_after_static_correction: 1
+      confirmation_runs_after_validation_pass: 1
+      sol_escalation: none_return_to_owner_or_planner
+      invoke_other_roles_automatically: false
+    revised_stop_conditions:
+      - current solution cannot be restored exactly to verified 485-byte owner form
+      - external backup watcher or writer-lifetime attribution is incomplete
+      - mutation occurs outside owned Unity lifetime or with competing project Unity ownership
+      - solution delta is not explainable Unity project-membership regeneration
+      - solution deletion redirection unexpected replacement atomic restoration failure or final mismatch
+      - invalid root sentinel bootstrap inventory bridge child ownership or unexpected path
+      - protected product Builder owner-managed or infrastructure hash changes unexpectedly
+      - genuine behavioral failure audio-lock recurrence log cap incomplete evidence or uncontained Editor
+      - confirmation reuses validation identity or fails any gate
+      - implementation requires any path outside the unchanged authorized infrastructure set
+    continuation_handoff_additions:
+      - exact slnx classification and one-time restoration proof
+      - per-run pre observed-post and restored hashes diffs timestamps backups and atomic restoration
+      - per-run sentinel root inventory and bridge-child inventory
+      - both run IDs PIDs logs lifecycle results evidence and shutdown proof
+      - cross-run comparison and final complete Git state
+      - final hashes for all eight authorized infrastructure files
+      - protected source and meta before-after hashes
+      - confirmation no unauthorized implementation path changed
+      - infrastructure validation only and does not certify M1-D01 product completion
