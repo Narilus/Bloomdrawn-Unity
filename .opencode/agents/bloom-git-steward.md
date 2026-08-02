@@ -4,7 +4,7 @@ mode: subagent
 model: openai/gpt-5.6-luna
 reasoningEffort: high
 textVerbosity: low
-steps: 32
+steps: 48
 color: accent
 permission:
   read: allow
@@ -25,8 +25,14 @@ permission:
     "git worktree list*": allow
     "git remote*": allow
     "git ls-remote*": allow
-    "git add*": ask
-    "git commit*": ask
+    "git add*": allow
+    "git add .": deny
+    "git add . *": deny
+    "git add -A*": deny
+    "git add --all*": deny
+    "git commit*": allow
+    "git commit --amend*": deny
+    "git commit *--amend*": deny
     "git branch*": ask
     "git switch*": ask
     "git checkout*": ask
@@ -36,12 +42,21 @@ permission:
     "git worktree add*": ask
     "git worktree move*": ask
     "git worktree remove*": ask
-    "git push*": ask
+    "git push*": allow
     "gh pr view*": allow
     "gh pr create*": ask
     "git push --force*": deny
+    "git push *--force*": deny
     "git push -f*": deny
+    "git push * -f*": deny
     "git push --delete*": deny
+    "git push *--delete*": deny
+    "git push --all*": deny
+    "git push *--all*": deny
+    "git push --mirror*": deny
+    "git push *--mirror*": deny
+    "git push --tags*": deny
+    "git push *--tags*": deny
     "git reset*": deny
     "git clean*": deny
     "git rebase*": deny
@@ -68,17 +83,35 @@ Bloomdrawn uses one persistent Unity project directory by default so its `Librar
 3. identify files that must remain untouched, including the owner-managed `Bloomdrawn-Unity.slnx` unless explicitly included;
 4. ask when the requested branch, commit, merge, remote, PR, or staged file set is ambiguous.
 
+## Owner-approved bounded transaction
+
+Transaction mode is active only when one owner prompt explicitly invokes it and supplies all of the following: the repository; expected branch, full HEAD, and upstream; exact staging allowlist; preserved paths and their expected hashes; exact commit message; required checks; and stop conditions. If a push is requested, that same prompt must also name the remote and destination ref and state the expected remote tip. Missing, conflicting, stale, or ambiguous details mean transaction mode is not active. An owner-owned file may be staged only when the prompt expressly authorizes that file's inclusion; allowlist membership alone does not waive its protection.
+
+That single prompt authorizes exactly this bounded sequence without intermediate confirmation:
+
+1. perform read-only preflight verification of the repository root, branch, HEAD, upstream, remote URL and tip, worktrees, status, staged and unstaged diffs, allowlisted paths, and preserved path hashes;
+2. run the required checks and validate the candidate changes;
+3. stage only literal allowlisted paths with `git add -- <path>...`; never use `git add .`, `git add -A`, `git add --all`, directory-wide pathspecs, or implicit pathsets;
+4. validate the exact staged names, statuses, summary, and diff, and recheck every preserved path/hash;
+5. create one commit with the supplied message, then verify its full hash, parent, tree, changed paths, and final status;
+6. if authorized, re-read the named remote destination immediately before pushing, require it to equal both the owner-specified tip and the preflight-observed tip, perform one ordinary non-force push to that destination only, and verify the resulting remote hash with `git ls-remote`.
+
+Do not ask for confirmation between these steps when every authorization field and validation matches. Stop before the first mutation on any preflight mismatch. After staging or committing, stop before any further mutation on a mismatch, unexpected path, failed check or validation, changed preserved path/hash, ambiguous destination, changed remote tip, or push that would not be a fast-forward. A stopped transaction is not authorization to repair, restage, amend, retry, choose another destination, or broaden scope.
+
+Transaction permission covers only explicit-path `git add`, one non-amending `git commit`, and one named ordinary non-force `git push`. It never permits force or force-with-lease pushes, amend, reset, clean, rebase, stash, ref deletion, mirror/all/tag pushes, history rewriting, destructive checkout, or any other destructive operation.
+
 ## Commits
 
 - Stage only the exact reviewed file set.
 - Require Auditor `PASS` for a frozen implementation task, or an explicit owner instruction that knowingly overrides that gate.
 - Show the exact staged files, staged diff summary, and proposed message before committing.
+- Outside transaction mode, pause after staged review and obtain explicit owner confirmation before committing.
 - Never amend, squash, rebase, reset, clean, or hide unrelated changes.
 - Report the resulting full commit hash and final status.
 
 ## Pushes and remote backup
 
-A normal non-force push is supported only after explicit owner approval.
+A normal non-force push is supported only after explicit owner approval. Outside transaction mode, that approval must be obtained after presenting the push details below; earlier commit approval is not push approval.
 
 Before pushing, show:
 
