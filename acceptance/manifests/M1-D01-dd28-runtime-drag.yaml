@@ -1,7 +1,7 @@
 schema_version: 1
 task_id: M1-D01
 title: Restore the real DD-28 ordinary-runtime card drag path
-status: frozen_for_owner_review
+status: frozen_blocked_on_acceptance_infrastructure_recovery
 
 baseline:
   source_commit: 6e910f7811dc3b7f07aa5d30b7ca574d561b45a6
@@ -256,7 +256,7 @@ validation:
     - unity command
   gates:
     - focused Builder-owned M1-D01 Play Mode developer tests
-    - protected M1D01RuntimeDragAcceptanceTests
+    - protected M1D01RuntimeDragAcceptanceTests through the frozen hardened TestRunnerApi bridge
     - Tools\validate.ps1
     - complete Edit Mode suite -> Logs\M1-D01-EditMode-results.xml
     - complete Play Mode suite -> Logs\M1-D01-PlayMode-results.xml
@@ -316,3 +316,276 @@ completion:
     - stage
     - commit
     - push
+
+acceptance_infrastructure_recovery_amendment:
+  amendment_baseline:
+    commit: 4faaac04f70b7f2b5d8df496429409fba8bd2943
+    branch: fix/m1-dd28-runtime-drag
+    upstream: origin/fix/m1-dd28-runtime-drag
+    ahead: 0
+    behind: 0
+  scope:
+    infrastructure_only: true
+    changes_dd28: false
+    changes_behavioral_criteria: false
+    changes_protected_behavioral_test: false
+    changes_builder_implementation: false
+    resets_builder_repair_budget: false
+    historical_13_of_13_is_completion: false
+  observed_blocker:
+    pipeline_version: 0.4.0-exp.1
+    test_framework_version: 1.7.0
+    collector_failure:
+      type: InvalidOperationException
+      source: Unity.Pipeline.Editor.Testing.TestResultCollector.RunFinished
+      operation: TaskCompletionSource.SetResult
+      package_source_line: 88
+      occurs_after_reported_result: '13 passed, 0 failed'
+      repeats_across_clean_editor_sessions: true
+    native_assertion:
+      message: Access version should be odd when acquiring lock
+      shutdown_source: Modules/Audio/Public/Utilities/CriticalSection.h:56
+      continuously_repetitive: true
+      observed_log_gib: 20.893
+      observed_log_lines: 169955086
+    temporal_order:
+      test_completion_precedes_audio_assertion: true
+      causality_proven: false
+  ownership:
+    implementation: protected_acceptance_engineer
+    builder_writable: false
+    final_verifier: bloom-auditor
+    planner_or_owner_receives_handoff_before_builder_resume: true
+  authorized_paths_exact:
+    modify:
+      - Tools/Acceptance/Invoke-M1D01Acceptance.ps1
+      - Tools/Acceptance/M1-D01-runner-contract.json
+      - acceptance/locks/M1-D01-protected.sha256.json
+    create:
+      - Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta
+      - Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef
+      - Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta
+      - Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs
+      - Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta
+    explicitly_unchanged:
+      - Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs
+      - Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs.meta
+      - Tools/Acceptance/M1-D01-expected-values.json
+      - Packages/manifest.json
+      - ProjectSettings/**
+      - Assets/Bloomdrawn/Presentation/**
+      - Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs
+      - Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta
+  bridge_assembly:
+    editor_only: true
+    permitted_references:
+      - Unity.Pipeline
+      - UnityEditor.TestRunner
+      - UnityEngine.TestRunner
+      - normal Unity/System serialization and IO assemblies
+    forbidden_references:
+      - Bloomdrawn.Engine
+      - Bloomdrawn.Application
+      - Bloomdrawn.Presentation
+      - Bloomdrawn.Content
+      - runtime test implementation assemblies
+    existing_asmdef_change_permitted: false
+  public_api_contract:
+    use:
+      - TestRunnerApi.Execute
+      - TestRunnerApi.RegisterCallbacks
+      - TestRunnerApi.UnregisterCallbacks
+      - TestRunnerApi.CancelTestRun
+      - TestRunnerApi.SaveResultToFile
+      - ICallbacks and public test/result adaptors
+    forbidden:
+      - Pipeline run_tests
+      - Pipeline test_status
+      - Pipeline cancel_tests
+      - PipelineTestRunner
+      - PackageCache copy or patch
+      - reflection into TestRunner internals
+    pipeline_role: start_or_abort_command_transport_and_normal_health_console_only
+    commands:
+      start:
+        exact_fixture_only: Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests
+        arbitrary_filter_parameters: false
+      abort:
+        active_persisted_job_only: true
+  asynchronous_result_contract:
+    poll_source: task_local_atomic_status_file
+    poll_interval_milliseconds: 250
+    pipeline_test_status_used: false
+    lifecycle:
+      - prepared
+      - running
+      - completing
+      - completed
+      - behavioral_failure
+      - infrastructure_failure
+      - aborted
+    persistence:
+      request_before_execute: true
+      includes_run_id_head_fixture_expected_methods_start_utc: true
+      execute_once_across_domain_reload: true
+      reattach_callback_only_after_reload: true
+      same_volume_atomic_temp_replace: true
+      nunit_xml_via_public_api: true
+      bounded_json_summary_and_leaf_results: true
+    exact_fresh_result:
+      total: 13
+      passed: 13
+      failed: 0
+      skipped: 0
+      inconclusive: 0
+  duplicate_run_finished:
+    in_domain_atomic_guard: true
+    durable_create_new_claim_by_run_id: true
+    first_delivery_freezes_full_result_fingerprint: true
+    identical_duplicate:
+      may_not_set_task_completion_source: true
+      may_not_overwrite_result_or_repeat_xml_save: true
+      records_bounded_event_and_count: true
+      quiescence_seconds: 5
+    divergent_duplicate: INFRASTRUCTURE_FAILURE
+    duplicate_handling_is_console_error_allowlist: false
+  console_policy:
+    clear_console: false
+    boundaries:
+      - startup
+      - pre_test_cursor
+      - post_test_through_shutdown
+    accepted_unexpected_errors_asserts_exceptions: 0
+    ignored_patterns: []
+    fail_on_dropped_truncated_or_unparseable_evidence: true
+    infrastructure_precedence_when_result_and_console_both_fail: true
+  dedicated_log_and_audio_containment:
+    require_no_project_editor_at_entry: true
+    launch:
+      wrapper: Tools/open-automated-editor.ps1
+      automated: true
+      unique_log: Logs/M1-D01/Acceptance/runs/<run-id>/Editor.log
+      task_owned_pid_recorded: true
+      attach_to_preexisting_editor: false
+    watchdog:
+      out_of_process: true
+      starts_immediately_after_launch: true
+      exact_pattern: Access version should be odd when acquiring lock
+      preserves_chunk_boundary_matches: true
+      trigger_on_first_occurrence: true
+      trigger_on_log_bytes: 67108864
+      classification: INFRASTRUCTURE_FAILURE
+      automatic_retry: false
+      graceful_abort_seconds: 5
+      force_stop_only_exact_task_owned_pid: true
+      context_bytes_around_first: 262144
+      final_context_bytes: 262144
+    retention:
+      unique_run_directory_no_overwrite: true
+      maximum_retained_editor_logs_before_owner_archive: 3
+      maximum_retained_editor_log_bytes_before_owner_archive: 201326592
+      automatic_log_deletion: false
+  finite_limits:
+    editor_startup_seconds: 180
+    import_compile_seconds: 180
+    start_ack_or_durable_running_seconds: 30
+    protected_test_seconds: 900
+    post_completion_quiescence_seconds: 5
+    normal_shutdown_seconds: 30
+    abort_shutdown_before_force_seconds: 5
+    xml_bytes: 16777216
+    json_bytes: 16777216
+    public_input_trace_bytes: 4194304
+    each_screenshot_bytes: 16777216
+    combined_screenshot_bytes: 134217728
+    combined_non_log_evidence_bytes: 268435456
+  editor_process_policy:
+    one_test_suite_per_fresh_editor: true
+    suites_requiring_process_boundary:
+      - focused_builder_playmode
+      - protected_m1d01_playmode
+      - complete_editmode
+      - complete_playmode
+    compilation_health_and_non_test_validators_may_share_one_suite_editor: true
+    shutdown_and_pid_children_pipeline_absence_required_between_suites: true
+  acceptance_engineer_validation:
+    order:
+      - static path diff and unchanged protected behavioral and Builder hashes
+      - candidate protected hash refreeze
+      - no Editor and no stale Pipeline request or status
+      - fresh automated Editor with unique bounded log and watchdog
+      - pinned version readiness and compile health
+      - bridge lifecycle duplicate stale-run size and timeout self-diagnostics
+      - Console and log boundaries without clearing
+      - one exact bridge start and atomic-file poll
+      - fresh exact XML JSON screenshots traces and state evidence
+      - five-second duplicate quiescence
+      - graceful shutdown and complete process absence
+      - protected infrastructure diff and git diff check
+      - final protected refreeze
+      - second fresh confirmation run against frozen hashes
+    historical_artifact_may_satisfy_run: false
+  protected_refreeze:
+    owner: protected_acceptance_engineer
+    add_every_new_bridge_asset_and_meta_to_lock: true
+    update_changed_runner_and_contract_hashes: true
+    preserve_all_unchanged_protected_hashes: true
+    record_pre_and_post_hash_sets: true
+    final_only_after_validation_then_fresh_confirmation: true
+  recovered_gate:
+    preserves_existing_classification_exit_codes: true
+    pass_requires:
+      - exact fresh 13 of 13 result in XML and JSON
+      - all original behavioral criteria and evidence
+      - zero unexpected Console or dedicated-log errors asserts exceptions
+      - no audio assertion or log/evidence limit breach
+      - identical-or-zero duplicate deliveries and no divergent duplicate
+      - protected and complete working-tree hashes unchanged
+      - clean task-owned Editor shutdown and no child or Pipeline process
+    prior_13_of_13_is_diagnostic_only: true
+  rollback:
+    automatic_source_rollback: false
+    runtime_abort_actions:
+      - cancel exact persisted job when reachable
+      - exit Play Mode
+      - gracefully close exact task-owned Editor
+      - force contain exact task-owned PID only after bounded grace
+      - finish bounded integrity evidence
+    rejected_recovery_restore_owner: owner_or_git_steward
+    restore_scope_only: authorized infrastructure paths
+    product_or_builder_path_rollback: forbidden
+  stop_conditions:
+    - public TestRunnerApi cannot support recovery without package version manifest PackageCache or shared assembly changes
+    - frozen behavioral test or criterion would need modification
+    - command transport cannot start exact run without Pipeline collector
+    - watchdog cannot own and contain the launched PID
+    - stale or concurrent test execution cannot be rejected
+    - missing corrupt partial oversized or divergent result evidence
+    - any unexpected Console or dedicated-log Error Exception or Assert
+    - any repository or protected hash mutation
+    - one clean confirmation attempt reproduces the native audio assertion
+  auditor_anti_facade:
+    - unchanged behavioral source and meta hashes
+    - full bridge runner and assembly dependency inspection
+    - no Pipeline test commands fixture injection direct handler controller session calls or result synthesis
+    - independent NUnit XML parse and exact method identity comparison
+    - cross-check JSON screenshots traces timestamps run ID HEAD and state event command RNG evidence
+    - duplicate idempotence and divergent fail-closed proof
+    - watchdog log cap exact PID fresh process and shutdown proof
+    - independent recovered gate rerun in a fresh automated Editor
+  handoff:
+    implementation_role: bloom-acceptance-engineer
+    return_to: owner_or_planner
+    required_fields:
+      - exact files and hashes
+      - public APIs and assembly references
+      - lifecycle and duplicate strategy
+      - self-diagnostic results
+      - validation and confirmation run IDs PIDs logs and classifications
+      - XML JSON screenshot trace and state evidence paths
+      - Console log audio watchdog and shutdown evidence
+      - complete Git and protected-hash integrity
+      - stop conditions or retained uncertainty
+    builder_resume_after_handoff: remaining_validation_and_handoff_only
+    auditor_after_all_required_gates: true
+    automatic_role_invocation: false

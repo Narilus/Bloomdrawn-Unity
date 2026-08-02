@@ -1,11 +1,11 @@
 # M1-D01 — Restore the Real DD-28 Ordinary-Runtime Card Drag Path
 
-**Status:** FROZEN FOR OWNER REVIEW; **BLOCKED before Builder invocation** until the protected external acceptance harness named below exists.  
+**Status:** FROZEN; Builder implementation is present and behaviorally green; **BLOCKED on protected acceptance infrastructure recovery** until Section 15 is implemented and its recovered gate passes.
 **Authority baseline:** `6e910f7811dc3b7f07aa5d30b7ca574d561b45a6` (`fix/m1-dd28-runtime-drag`; source baseline and merge-base both verified at planning time).  
 **Planning worktree:** `D:\Dev\Projects\Bloomdrawn-Unity-M1D01`  
 **Acceptance manifest:** `acceptance/manifests/M1-D01-dd28-runtime-drag.yaml`
 
-**Owner amendment:** The release-below, protected-runner dirty-state, workforce-v4, and repair-accounting corrections below were approved after implementation exposed over-constrained acceptance encoding and obsolete workforce requirements. These corrections do not weaken DD-28 or broaden M1-D01 scope.
+**Owner amendments:** The release-below, protected-runner dirty-state, workforce-v4, repair-accounting, and Section 15 acceptance-infrastructure recovery corrections were approved after implementation exposed over-constrained acceptance encoding, obsolete workforce requirements, and a repeatable Pipeline result-collector failure. None changes DD-28, the protected behavioral criteria, or the existing Builder implementation.
 
 ## 1. Objective and Player-Visible Outcome
 
@@ -200,7 +200,7 @@ The runner may not infer permission from a broad directory alone. Any later task
 Run from the repository root, using installed discovered syntax:
 
 1. focused new Builder developer Play Mode test(s);
-2. protected `M1D01RuntimeDragAcceptanceTests` (Builder may run but not edit it);
+2. protected `M1D01RuntimeDragAcceptanceTests` through the Section 15 hardened task-local bridge (Builder may run the owner-frozen runner but may not edit the test, bridge, runner, contract, or lock);
 3. `Tools\validate.ps1`;
 4. complete Edit Mode suite to `Logs\M1-D01-EditMode-results.xml`;
 5. complete Play Mode suite to `Logs\M1-D01-PlayMode-results.xml`;
@@ -283,3 +283,145 @@ The Builder must not claim acceptance or commit. Return:
 - explicit statement: “Not self-certified; awaiting Bloom Auditor verdict.”
 
 Task completion requires Auditor `PASS`. Git staging/commit/push remains owner/Git Steward work outside this packet.
+
+## 15. Frozen Acceptance-Infrastructure Recovery Amendment
+
+### 15.1 Purpose, baseline, and non-effect on behavior
+
+This amendment repairs only the executable transport and containment around the already-frozen protected acceptance. It does **not** authorize product work, a DD-28 change, a behavioral-test edit, a criterion change, acceptance by historical result, or a reset of the Builder repair budget.
+
+Recovery planning baseline is `4faaac04f70b7f2b5d8df496429409fba8bd2943` on `fix/m1-dd28-runtime-drag`, tracking `origin/fix/m1-dd28-runtime-drag` at `0/0`. At that baseline the focused Builder tests report `2 passed, 0 failed`; the protected behavior report records `13 passed, 0 failed`; protected hashes and pre/post working-tree hashes are intact; and ordinary-runtime public-input traces and three-resolution screenshots exist. These are investigation facts, not a substitute for a fresh recovered protected run.
+
+Observed infrastructure evidence is:
+
+- Pipeline `0.4.0-exp.1` `TestResultCollector.RunFinished` calls `TaskCompletionSource<ITestResultAdaptor>.SetResult` unconditionally at package source line 88; duplicate completion throws `InvalidOperationException` after the report has recorded `13 passed, 0 failed`.
+- The failure has recurred across clean Editor sessions. The protected runner correctly classified the affected run `INFRASTRUCTURE_FAILURE` because its Console boundary was not clean.
+- A later native assertion, `Access version should be odd when acquiring lock`, became continuously repetitive and is identified during shutdown as `Modules/Audio/Public/Utilities/CriticalSection.h:56`; the project log reached 20.893 GiB. Test completion precedes assertion onset in log order, but causality is unproven.
+- Unity is stopped. Planning must not restart it.
+
+Section 15 supersedes only Section 10's former use of Pipeline `run_tests` / `test_status` for this protected fixture. All ordinary-runtime, forbidden-bypass, evidence, hash, dirty-state, classification, Auditor, and completion requirements remain in force.
+
+### 15.2 Owner decisions and exact ownership
+
+1. The protected source `Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs`, its `.meta`, its 13 methods, and every assertion remain byte-for-byte frozen.
+2. The recovery uses Unity Test Framework `1.7.0` public `TestRunnerApi.Execute`, `RegisterCallbacks` / `UnregisterCallbacks`, result adaptors, `CancelTestRun`, and `SaveResultToFile`. It must not copy, patch, reflect into, or write `Library/PackageCache`, and must not change `Packages/manifest.json`, Unity `6000.5.5f1`, or any package/version.
+3. Pipeline remains only the command transport used to invoke the task-local start/abort bridge and ordinary health/Console commands. The recovered protected run must never call Pipeline `run_tests`, `test_status`, `cancel_tests`, or `PipelineTestRunner`.
+4. Recovery implementation and refreeze belong exclusively to the protected Acceptance Engineer. The Builder must not edit, repair, or own these files. The Auditor remains read-only and is the only final certifier.
+5. No infrastructure attempt counts as a Builder repair cycle, resets that budget, or permits additional implementation paths.
+
+### 15.3 Exact authorized infrastructure path set
+
+The Acceptance Engineer may create or modify **only** these paths:
+
+- `Tools/Acceptance/Invoke-M1D01Acceptance.ps1`
+- `Tools/Acceptance/M1-D01-runner-contract.json`
+- `acceptance/locks/M1-D01-protected.sha256.json`
+- `Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta`
+- `Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef`
+- `Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta`
+- `Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs`
+- `Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta`
+
+The new assembly must be Editor-only and may reference only `Unity.Pipeline`, `UnityEditor.TestRunner`, `UnityEngine.TestRunner`, and normal Unity/System assemblies required for file/result serialization. It may not reference Bloomdrawn Engine, Application, Presentation, Content, runtime test implementation, or product assemblies. No existing assembly definition may change. `Tools/Acceptance/M1-D01-expected-values.json` remains protected and unchanged unless a later owner amendment explicitly authorizes it.
+
+Any need for another path—including product/Builder files, the protected behavioral test, `Packages/**`, `ProjectSettings/**`, a shared launcher, an existing asmdef, or PackageCache—is an immediate stop and return to the owner/Planner.
+
+### 15.4 Hardened bridge contract
+
+The dedicated assembly exposes exactly two task-local commands: a start command for the exact protected fixture and an abort command for the active run. It must not expose an arbitrary test name, assembly, category, scene, or expected-result input.
+
+The start command must:
+
+1. accept a runner-generated cryptographically unique run ID and task-local evidence directory only;
+2. fail if another run is active, if a stale Pipeline `Temp/pipeline_test_request.json` or `Temp/pipeline_test_status.json` exists, or if its output directory/status already exists;
+3. atomically persist a request containing task ID, run ID, tested HEAD, exact fixture identity, exact expected method identities, start UTC, and lifecycle state before execution;
+4. register one callback instance per domain, execute Play Mode in the Editor through `TestRunnerApi.Execute`, persist the returned job GUID, and rely on Unity Test Framework's normal Play Mode/domain-reload continuation;
+5. after domain reload, re-register only against the matching nonterminal request and never call `Execute` a second time;
+6. verify the started/result tree belongs exactly to the frozen fixture and contains the contract's 13 expected test method identities; an unrelated, concurrent, missing, extra, or zero-test tree is infrastructure failure;
+7. reconstruct leaf results from the authoritative root result tree, save NUnit XML through `TestRunnerApi.SaveResultToFile`, and save a bounded JSON summary/result list; and
+8. use same-volume temporary files plus atomic replace/move so pollers never observe partial JSON or XML.
+
+Lifecycle states are monotonic: `prepared -> running -> completing -> completed|behavioral_failure|infrastructure_failure|aborted`. The outer runner polls the task-local atomic status file directly every 250 ms; it does not use Pipeline test status. Loss of the start HTTP response is not itself success or failure: the matching durable status must prove whether the exact run started.
+
+The abort command may call `TestRunnerApi.CancelTestRun` only for the persisted active job GUID, request Play Mode exit, mark the run aborted, and return. It may not suppress results or turn a failure into success.
+
+### 15.5 Duplicate completion policy
+
+The bridge must assume `RunFinished` can be delivered more than once. Completion ownership is acquired with both an in-domain atomic guard and a same-volume create-new completion claim keyed by run ID.
+
+- The first delivery freezes a fingerprint over fixture identity, all leaf full names/statuses, summary counts, duration-independent result content, messages, and stack traces; then it writes XML/JSON and the terminal state.
+- A later delivery must never call `SetResult`, overwrite the first result, repeat `SaveResultToFile`, or throw. It records a bounded duplicate-delivery event.
+- An identical fingerprint is accepted as duplicate framework delivery only after a five-second post-completion quiescence window; its count and fingerprint remain evidence.
+- A different fingerprint, changed test set, changed status, or inability to compare/write the duplicate record is `INFRASTRUCTURE_FAILURE`.
+
+Idempotence is not an error allowlist. A failing, skipped, inconclusive, missing, or extra protected test remains non-passing. The runner requires exactly `13 total, 13 passed, 0 failed, 0 skipped, 0 inconclusive` from freshly written XML and JSON.
+
+### 15.6 Console and log policy
+
+There is no accepted Console-error allowlist for the recovered gate. From dedicated Editor launch through confirmed shutdown, any Unity Console or dedicated log `Error`, `Exception`, or `Assert` entry is infrastructure failure unless it is an assertion intentionally expected and consumed inside a protected test through Unity Test Framework; the frozen M1-D01 fixture currently expects none. The runner must not ignore `InvalidOperationException`, `TestResultCollector.RunFinished`, the audio-lock assertion, or errors merely because all tests passed.
+
+The runner must not clear the Console. It records a startup boundary, a pre-test cursor, and the complete bounded post-test error/assert/exception evidence. A dropped/truncated Console query, parse failure, unavailable cursor, or mismatch between Console and dedicated-log detection fails closed. A valid behavioral failure is reported `BEHAVIORAL_FAILURE` only when result integrity is complete and no infrastructure/Console/log failure occurred; infrastructure corruption takes precedence when both are present.
+
+### 15.7 Audio-lock containment and finite limits
+
+The recovered runner requires no project Editor at entry. It launches one fresh, task-owned `-automated` Editor through `Tools/open-automated-editor.ps1 -AdditionalArguments`, supplying `-logFile` with a unique path under `Logs/M1-D01/Acceptance/runs/<run-id>/Editor.log`. It records the exact launched PID and must never attach this gate to or terminate a pre-existing Editor.
+
+An out-of-process watchdog starts immediately after launch and scans appended bytes, preserving pattern matches across chunk boundaries. Either of these conditions triggers immediate abort and `INFRASTRUCTURE_FAILURE`:
+
+- first exact occurrence of `Access version should be odd when acquiring lock`;
+- dedicated Editor log reaches 64 MiB.
+
+On trigger, the watchdog writes run ID, UTC, PID, byte offset, current size, reason, and bounded context; requests the bridge abort when reachable; requests graceful close of the exact task-owned PID; waits at most five seconds; then may force-stop **only that recorded task-owned PID**. It captures at most 256 KiB around the first trigger and the final 256 KiB. It never automatically retries.
+
+Other limits are: 180 seconds for startup/Pipeline readiness; 180 seconds for import/compile health; 30 seconds for start acknowledgement or durable `running`; 900 seconds for the exact protected test run; five seconds post-completion quiescence; 30 seconds for normal graceful Editor shutdown; and five seconds after an abort before exact-PID force containment. XML and JSON are each capped at 16 MiB, public-input trace at 4 MiB, each screenshot at 16 MiB, screenshots combined at 128 MiB, and non-log run evidence combined at 256 MiB. Exceeding a limit fails closed.
+
+Each attempt uses a new run directory and never truncates or overwrites prior evidence. No more than three task-local Editor logs or 192 MiB of retained task-local Editor logs may exist before launch; the runner then stops for owner-controlled archival rather than deleting evidence.
+
+### 15.8 Fresh-Editor validation sequence
+
+No Editor may execute more than one Unity test suite for this recovery. Compilation, health, bridge self-diagnostics, and non-test validators may share the fresh process used for one suite. Before another focused, protected, complete Edit Mode, or complete Play Mode suite, the prior task-owned Editor must exit and process shutdown must be verified. Batch tools that launch and own their own Editor already satisfy a separate-process boundary when their exact PID/log is recorded.
+
+The Acceptance Engineer validates in this order:
+
+1. static diff/path review; unchanged protected behavioral-test and Builder hashes; updated contract schema; no forbidden API/bypass/package edits;
+2. refreeze candidate hashes, but do not declare them final until runtime validation succeeds;
+3. ensure no project Editor or stale Pipeline test request/status exists;
+4. launch one fresh task-owned automated Editor with the unique bounded log and watchdog;
+5. require Unity `6000.5.5f1`, Pipeline/Editor ready, compilation inactive, compile errors zero, and successful import of the dedicated bridge assembly;
+6. run a bounded bridge self-diagnostic that proves atomic lifecycle transitions, identical duplicate idempotence, divergent duplicate failure, stale-run rejection, and size/timeout classification without synthesizing a gameplay result;
+7. establish Console/log boundaries without clearing them;
+8. invoke the bridge start command once and poll only its atomic status file;
+9. require fresh XML/JSON for the exact run ID and HEAD with `13/13`, all exact method identities, no skips/inconclusives, all required screenshots/traces/state evidence, zero unexpected Console/log entries, no audio-lock marker, and intact pre/post Git/protected hashes;
+10. wait the five-second duplicate quiescence window, gracefully close the task-owned Editor, verify PID/children/Pipeline are gone, then classify the gate;
+11. run static script checks and `git diff --check` for the protected infrastructure diff; and
+12. finalize and record exact protected hashes only after the successful run, then perform one clean confirmation run from another fresh Editor against that frozen set. The confirmation run is the result handed back to the Builder/owner.
+
+The prior `13/13` artifact is retained as diagnosis only. It cannot satisfy steps 8-12.
+
+### 15.9 Recovered runner acceptance and Auditor anti-façade proof
+
+The recovered runner returns `PASS` only when every original criterion and all infrastructure conditions pass in one fresh run. It retains existing classification exit codes and dirty-state integrity behavior. Pre/post snapshots include every dirty/untracked path and hash, the tested HEAD, exact protected hashes, task-local bridge hashes, runner command transcript, job/run IDs, Editor PID/version/arguments, Console cursors, dedicated-log hash/size, XML/JSON hashes, evidence inventory, duplicate-delivery count/fingerprints, and shutdown verification.
+
+The Auditor must independently:
+
+- verify the behavioral test source/meta hashes are unchanged and inspect all bridge/runner source for bypasses;
+- prove command history contains bridge start/abort only and no Pipeline `run_tests`, `test_status`, fixture injection, direct handler/controller/session call, result synthesis, or transformed historical artifact;
+- parse NUnit XML independently, compare the 13 full method identities and statuses to the frozen source/contract, and cross-check JSON, screenshots, trace sequences, timestamps, run ID, HEAD, and state/event/command/RNG evidence;
+- verify the bridge is Editor-only, has no product-assembly reference, and does not alter scene/runtime composition;
+- exercise or inspect evidence for identical-duplicate idempotence and divergent-duplicate fail-closed behavior;
+- verify the watchdog, 64 MiB cap, exact-PID ownership, bounded evidence, fresh-process boundary, and clean shutdown; and
+- independently rerun the recovered protected gate in a fresh automated Editor before any `PASS` verdict.
+
+Fresh evidence and independent XML/source correlation are mandatory; a bridge that writes expected `13/13` values without a genuine TestRunnerApi root result is a façade and immediate `FAIL`.
+
+### 15.10 Rollback, stop conditions, and handoff
+
+On timeout, audio assertion, log cap, duplicate mismatch, Console/log error, missing/corrupt result, behavioral failure, repository mutation, or unhealthy Editor, the runner attempts active-job cancellation, exits Play Mode, contains its exact PID, completes bounded integrity evidence, and stops. It must not retry automatically, weaken classification, delete logs, or repair product code.
+
+There is no automatic source rollback. If recovery is rejected or cannot compile, the Acceptance Engineer stops with the exact diff and hashes; owner/Git Steward may restore only the Section 15.3 infrastructure paths from the recorded pre-recovery commit/hash. Builder-owned and product paths are never rollback targets.
+
+Immediate return to owner/Planner is required if public TestRunnerApi cannot support the bridge without package/version/manifest/PackageCache/shared-assembly changes; if the frozen test or any behavior criterion would need editing; if command transport cannot start the exact run without Pipeline's collector; if the watchdog cannot own/contain the launched PID; or if one clean confirmation attempt reproduces the native audio assertion. Such outcomes do not consume or reset Builder repair budget.
+
+**Implementation handoff role:** protected `bloom-acceptance-engineer`, not Builder or Sol. Its return must list exact files/hashes, public APIs used, lifecycle/duplicate strategy, self-diagnostic results, both fresh-run IDs/PIDs/logs, confirmation classification, XML/JSON/evidence paths, Console/log/audio-watch results, shutdown proof, complete Git integrity, and any stop condition.
+
+**Acceptance-engineering handoff:** after one successful validation run and one successful confirmation run are hash-frozen, return control to the owner/Planner. The owner may then resume the Builder only for the packet's remaining validation/handoff—without implementation repair—and may invoke the Auditor only after all required gates are complete. Never invoke either role automatically.
