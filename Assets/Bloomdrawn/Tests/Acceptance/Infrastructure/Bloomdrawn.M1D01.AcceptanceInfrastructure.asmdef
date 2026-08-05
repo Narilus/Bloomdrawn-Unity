@@ -1,0 +1,20 @@
+{
+  "name": "Bloomdrawn.M1D01.AcceptanceInfrastructure",
+  "rootNamespace": "Bloomdrawn.Tests.Acceptance.Infrastructure",
+  "references": [
+    "Unity.Pipeline",
+    "UnityEditor.TestRunner",
+    "UnityEngine.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

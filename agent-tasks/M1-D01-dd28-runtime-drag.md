@@ -1,11 +1,11 @@
 # M1-D01 — Restore the Real DD-28 Ordinary-Runtime Card Drag Path
 
-**Status:** FROZEN; Builder implementation is present and behaviorally green; **BLOCKED on protected acceptance infrastructure recovery** until Sections 15–16 are implemented and the recovered gate passes.
+**Status:** FROZEN; Builder implementation is present and behaviorally green; **BLOCKED on protected acceptance infrastructure recovery** until Sections 15–17 are implemented and the recovered gate passes.
 **Authority baseline:** `6e910f7811dc3b7f07aa5d30b7ca574d561b45a6` (`fix/m1-dd28-runtime-drag`; source baseline and merge-base both verified at planning time).  
 **Planning worktree:** `D:\Dev\Projects\Bloomdrawn-Unity-M1D01`  
 **Acceptance manifest:** `acceptance/manifests/M1-D01-dd28-runtime-drag.yaml`
 
-**Owner amendments:** The release-below, protected-runner dirty-state, workforce-v4, repair-accounting, Section 15 acceptance-infrastructure recovery, and Section 16 narrow recovery-continuation corrections were approved after implementation exposed over-constrained acceptance encoding, obsolete workforce requirements, a repeatable Pipeline result-collector failure, and two impossible ownership assumptions in the first recovered run. None changes DD-28, the protected behavioral criteria, or the existing Builder implementation.
+**Owner amendments:** The release-below, protected-runner dirty-state, workforce-v4, repair-accounting, Section 15 acceptance-infrastructure recovery, Section 16 narrow recovery-continuation, and Section 17 restoration-helper corrections were approved after implementation exposed over-constrained acceptance encoding, obsolete workforce requirements, a repeatable Pipeline result-collector failure, two impossible ownership assumptions in the first recovered run, and one invalid `File.Replace` rollback argument. None changes DD-28, the protected behavioral criteria, or the existing Builder implementation.
 
 ## 1. Objective and Player-Visible Outcome
 
@@ -531,3 +531,61 @@ Stop immediately without scope expansion or automatic retry when any existing Se
 ### 16.7 Acceptance Engineer continuation handoff
 
 Return the complete Section 15.10 handoff plus: exact failed-run preservation path; the pre-run/current `.slnx` classification and hashes; one-time restoration proof; for both successful runs the solution pre/observed-post/restored hashes, exact captured diff and timestamps, external backup verification, atomic restoration record, final Git equality, run-root sentinel and inventory, bridge-child inventory, run IDs, PIDs, logs, lifecycle files, shutdown proof, and cross-run comparison. List final hashes for all eight authorized infrastructure files and the protected source/meta before/after hashes. Confirm no non-authorized implementation path changed and state explicitly: **infrastructure validation only; this does not certify M1-D01 product completion.** Stop after handoff and never invoke the Builder or Auditor automatically.
+
+## 17. Frozen Minimal Restoration-helper Correction
+
+### 17.1 Purpose, baseline, and exact root cause
+
+This amendment corrects only the helper used to perform the already-authorized one-time and per-run `Bloomdrawn-Unity.slnx` restoration. It does not change the solution lifecycle, bridge architecture, run-directory ownership, protected acceptance, product behavior, implementation path set, validation criteria, or any other requirement frozen in Sections 15–16.
+
+Restoration-helper planning baseline is commit `8d33c334fcb713a8495fe6a2f631f3b62fafb023` on `fix/m1-dd28-runtime-drag`, tracking `origin/fix/m1-dd28-runtime-drag` at `0/0`, with an empty index and no project-owning Unity process. The current solution remains unmodified at 556 bytes and SHA-256 `16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35`; the reconstructed owner bytes remain verified in memory at 485 bytes and SHA-256 `045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4`. No Unity launch or infrastructure correction occurred.
+
+The failed helper called the three-string `System.IO.File.Replace(sourceFileName, destinationFileName, destinationBackupFileName)` overload with a non-empty same-directory temporary source, the validated absolute solution target, and `String.Empty` (`""`) as `destinationBackupFileName`. The target had been resolved to `D:\Dev\Projects\Bloomdrawn-Unity\Bloomdrawn-Unity.slnx`; the rollback argument had not been constructed or normalized to a path. Because an empty string is non-null, .NET attempted to normalize it with `Path.GetFullPath("")` and threw `The path is empty. (Parameter 'path')` before the operating-system replacement. The empty third rollback argument—not a relative target, empty target parent, null backup, missing target, or general unreliability of `File.Replace`—was the exact root cause. The target remained 556 bytes at its original hash, no replacement occurred, and no restoration temporary or rollback file remained.
+
+The failed-run evidence remains frozen at:
+
+- `Logs/M1-D01/Acceptance/runs/d1cb15d2baa243a1bcaf0e026ff29c3b`
+- `Logs/M1-D01/Acceptance/solution-recovery-d1cb15d2baa243a1bcaf0e026ff29c3b/`
+
+### 17.2 Frozen absolute-path and rollback-path protocol
+
+Before any restoration write, the Acceptance Engineer must:
+
+1. Resolve the repository root with an existing canonical absolute path and derive `Bloomdrawn-Unity.slnx` from that root. Resolve the target, its parent, the unique temporary path, and the unique rollback path to explicit absolute paths.
+2. Reject any root, target, temporary, or rollback value that is null, empty, whitespace-only, relative, non-canonical, rooted outside the verified repository root, or associated with a nonexistent parent. Reject a reparse/symlink redirect or root mismatch. The target parent must be exactly the resolved repository root.
+3. Create both restoration artifact names in the target's directory. The temporary and rollback names must include a cryptographically unique operation ID and must be explicit non-empty paths. The rollback argument passed to `File.Replace` may never be `null`, `String.Empty`, whitespace, an omitted placeholder, or a source/target alias.
+4. Log the operation ID and resolved absolute target, temporary, and rollback paths before replacement. Path evidence may be written to the applicable external or runner-owned evidence location, but solution bytes must not be duplicated into repository-controlled source paths.
+
+Immediately before the single replacement call, verify and durably record:
+
+- the temporary file exists and hashes to owner SHA-256 `045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4`;
+- the target exists, remains 556 bytes for the one-time restoration, and hashes to regenerated SHA-256 `16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35`; for later per-run restoration, it instead matches the captured transient hash whose restoration has already passed Section 16 content/lifetime checks;
+- target, temporary, and rollback are three distinct absolute paths under the same exact parent directory;
+- no rollback file already exists, and the temporary/rollback names cannot collide with a prior operation; and
+- the temporary bytes have been flushed durably and the target has not changed since the final precondition snapshot.
+
+The helper then performs exactly one `System.IO.File.Replace(temporaryAbsolutePath, targetAbsolutePath, rollbackAbsolutePath)` call. It must not substitute an empty backup argument, perform a preliminary destructive move, or automatically fall back to a non-atomic overwrite.
+
+After replacement, before deleting rollback evidence, verify the target immediately and durably:
+
+- length is exactly 485 bytes;
+- SHA-256 is exactly `045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4`;
+- UTF-8 BOM and CRLF facts remain correct;
+- Git status and exact diff against HEAD equal the verified owner state; and
+- the rollback file exists and contains the exact pre-replacement target bytes/hash.
+
+Only after all restoration checks succeed may the helper delete the rollback file. It then proves that no operation temporary or rollback file remains and records completion atomically. The later Section 16 per-run helper follows the same protocol using that run's verified pre-run backup as the temporary content and retaining the replaced transient form as rollback evidence until final equality succeeds.
+
+On any validation, write, replacement, or post-replacement failure, do not launch Unity, do not call `File.Replace` a second time, do not perform fallback restoration, and do not delete available target, temporary, rollback, path, hash, or exception evidence. Return directly to the owner/Planner. If replacement succeeded but post-checks failed, the rollback remains evidence; no automatic rollback is authorized.
+
+### 17.3 Scope, correction allowance, and continuation
+
+The authorized implementation scope remains exactly Section 15.3's eight paths: modify only the runner, runner contract, and protected lock; maintain only the five acceptance-infrastructure asset/meta paths. `Bloomdrawn-Unity.slnx` remains an owner-managed transient restoration target, not an implementation or commit path. No product, Builder test, protected test, package, scene, project setting, solution source, shared tooling, or additional path is authorized.
+
+The failed helper invocation consumed the Section 16 continuation attempt before any correction or Unity launch. The owner now authorizes exactly **one additional Acceptance Engineer correction cycle**. That single cycle may correct this restoration helper and then, after byte-exact one-time restoration succeeds, complete only the already-frozen solution lifecycle and run-directory ownership corrections, protected-hash refreeze, one fresh validation run, and one independent fresh confirmation run. There is no automatic helper retry, replacement retry, third validation attempt, repair-budget reset for the Builder, or Sol escalation.
+
+Every Section 15–16 stop condition remains in force. The additional cycle stops immediately if any path precondition is invalid, the one replacement fails, post-replacement owner equality fails, evidence cannot be retained, an unauthorized path/hash changes, or either subsequent fresh run fails any frozen condition.
+
+### 17.4 Revised Acceptance Engineer handoff
+
+In addition to Sections 15.10 and 16.7, report the exact prior empty-rollback root cause; the additional cycle used; the operation ID; resolved absolute root/target/temporary/rollback paths; every precondition and pre-replacement hash/length result; the single `File.Replace` outcome; restored target and rollback hashes; Git status/HEAD-diff equality; rollback deletion only after verification; proof that no helper artifacts remain; and any retained evidence on failure. Then provide the unchanged Section 16 correction and two-run handoff. State explicitly: **Infrastructure validation only; M1-D01 product completion remains uncertified.** Stop after handoff and never invoke another role automatically.

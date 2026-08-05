@@ -810,3 +810,125 @@ acceptance_infrastructure_recovery_amendment:
       - protected source and meta before-after hashes
       - confirmation no unauthorized implementation path changed
       - infrastructure validation only and does not certify M1-D01 product completion
+  restoration_helper_correction:
+    frozen: true
+    authority_baseline:
+      commit: 8d33c334fcb713a8495fe6a2f631f3b62fafb023
+      branch: fix/m1-dd28-runtime-drag
+      upstream: origin/fix/m1-dd28-runtime-drag
+      ahead: 0
+      behind: 0
+      index_empty: true
+      project_owning_unity_processes: 0
+    scope:
+      corrects_only: slnx_restoration_helper
+      changes_solution_lifecycle_contract: false
+      changes_bridge_or_run_directory_contract: false
+      changes_behavior_or_protected_acceptance: false
+      authorized_implementation_paths_unchanged: true
+      solution_is_transient_target_not_implementation_path: true
+    blocked_attempt:
+      exception: "The path is empty. (Parameter 'path')"
+      unity_launched: false
+      replacement_occurred: false
+      infrastructure_corrections_started: false
+      target:
+        bytes: 556
+        sha256: 16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35
+      reconstructed_owner_memory:
+        bytes: 485
+        sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+      residual_temporary_or_rollback_files: 0
+      evidence:
+        - Logs/M1-D01/Acceptance/runs/d1cb15d2baa243a1bcaf0e026ff29c3b
+        - Logs/M1-D01/Acceptance/solution-recovery-d1cb15d2baa243a1bcaf0e026ff29c3b/
+    exact_root_cause:
+      api: System.IO.File.Replace(string sourceFileName, string destinationFileName, string destinationBackupFileName)
+      source_argument: non_empty_same_directory_temporary
+      destination_argument: validated_absolute_Bloomdrawn_Unity_slnx
+      destination_backup_argument: String.Empty
+      empty_argument_position: 3
+      construction_failure: no explicit rollback path was constructed or normalized
+      dotnet_behavior: non-null empty backup was passed to Path.GetFullPath and rejected before OS replacement
+      not_caused_by:
+        - relative_target
+        - empty_target_parent
+        - null_backup
+        - missing_target
+        - general_File_Replace_unreliability
+    absolute_path_protocol:
+      resolve_and_validate:
+        - canonical_existing_absolute_repository_root
+        - absolute_target_derived_from_root
+        - absolute_same_directory_unique_temporary
+        - absolute_same_directory_unique_rollback
+      reject:
+        - null_empty_or_whitespace_path
+        - relative_or_noncanonical_path
+        - nonexistent_parent
+        - root_or_parent_mismatch
+        - reparse_or_symlink_redirect
+        - source_destination_or_rollback_alias
+      target_parent_must_equal_repository_root: true
+      unique_operation_id_required: true
+      log_absolute_paths_before_replacement: true
+      solution_bytes_must_not_be_copied_to_repository_source_paths: true
+    pre_replace_checks:
+      temporary_exists: true
+      temporary_owner_sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+      one_time_target_exists: true
+      one_time_target_bytes: 556
+      one_time_target_sha256: 16E5DA57CB8654CE08F7BFE7CA72622926DA2E888CC67D7D3266AA7A08ABFB35
+      per_run_target_must_match_captured_validated_transient: true
+      three_paths_distinct_absolute_and_same_parent: true
+      rollback_must_not_preexist: true
+      temporary_flushed_durably: true
+      target_unchanged_since_final_snapshot: true
+    replacement:
+      calls: 1
+      exact_shape: File.Replace(temporaryAbsolutePath, targetAbsolutePath, rollbackAbsolutePath)
+      empty_or_null_backup_forbidden: true
+      destructive_pre_move_forbidden: true
+      nonatomic_fallback_forbidden: true
+    post_replace_checks_before_rollback_deletion:
+      restored_bytes: 485
+      restored_sha256: 045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4
+      utf8_bom_and_crlf_preserved: true
+      git_status_and_head_diff_equal_verified_owner_state: true
+      rollback_exists_and_matches_pre_replacement_target: true
+    cleanup_after_success_only:
+      delete_rollback_after_all_checks: true
+      prove_no_operation_temporary_or_rollback_remains: true
+      record_completion_atomically: true
+    failure_policy:
+      launch_unity: false
+      automatic_second_replace: false
+      fallback_restore_or_overwrite: false
+      preserve_target_temporary_rollback_path_hash_and_exception_evidence: true
+      automatic_rollback_after_failed_postcheck: false
+      return_to: owner_or_planner
+    correction_allowance:
+      additional_acceptance_engineer_cycles: 1
+      may_complete_after_restoration:
+        - already_frozen_slnx_lifecycle
+        - already_frozen_run_directory_ownership
+        - protected_hash_refreeze
+        - one_fresh_validation_run
+        - one_independent_fresh_confirmation_run
+      automatic_helper_or_replacement_retry: false
+      additional_validation_attempts: 0
+      builder_budget_reset: false
+      sol_escalation: none
+      invoke_other_roles_automatically: false
+    handoff_additions:
+      - exact prior empty rollback root cause
+      - additional correction cycle used
+      - operation ID and resolved absolute root target temporary and rollback paths
+      - preconditions and pre-replacement hashes lengths and path relationships
+      - single File.Replace outcome
+      - restored target and rollback hashes
+      - Git status and HEAD diff owner equality
+      - rollback deletion after successful verification and no residual helper artifacts
+      - retained evidence on failure
+      - unchanged Section 16 correction and two-run handoff
+      - infrastructure validation only and M1-D01 product completion remains uncertified

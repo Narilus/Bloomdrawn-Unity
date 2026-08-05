@@ -24,12 +24,32 @@
       "sha256": "81626C852110FD1A473DC536426A2A35437213237ED7FB549E188B2572864782"
     },
     {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
+      "sha256": "7ABF4130F89804709F0E43BC1A97655F8B98B362AD03AFBDC70D70E2A1FCB149"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
+      "sha256": "44EB0EF9B34BA46A67CCAEE1D8B11EB269BCE8EFA3CD6934F66DF1E97E1CCDB8"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
+      "sha256": "13AFD83C3CE64C591298BAC1C263023246E486D480D8E33BB081DF52DE78AA81"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
+      "sha256": "5D6036B7AD9B1ACA2C9115A54416BB7F203364A88763CEA83CEA089D4A438BA4"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
+      "sha256": "1616CA50B41CC2F2C00B5B661CC10420E84AF2F684D5FBB73DD0707FEC3DA37F"
+    },
+    {
       "path": "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
-      "sha256": "65205834097DFE1AD7AE32ECFEE8E593EFED0BAA5DB38D9BBD02355E991E1156"
+      "sha256": "20AAE35CA678992F2F520ACDD63B77E674E3D0CBAF71A630695EA1A3486AC3A1"
     },
     {
       "path": "Tools/Acceptance/M1-D01-runner-contract.json",
-      "sha256": "9A1E1752C232699038D45FD9B45E97A7172112EC56957944C8A9D0216162962D"
+      "sha256": "6A3719F345630D9F6448F374879141F3B4B464CA2D8D610130B775E4C392744A"
     },
     {
       "path": "Tools/Acceptance/M1-D01-expected-values.json",

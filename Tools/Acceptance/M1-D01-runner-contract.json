@@ -1,29 +1,170 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "taskId": "M1-D01",
   "branch": "fix/m1-dd28-runtime-drag",
   "unityVersion": "6000.5.5f1",
   "scene": "Assets/Scenes/CombatStage.unity",
   "entrypoint": "ordinary Play Mode automatic CombatStageRuntimeBootstrap",
-  "testFilter": "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests",
+  "testFixture": "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests",
+  "testMode": "PlayMode",
+  "expectedMethods": [
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C01_OrdinaryBootstrap_RuntimeHealth_UsesCommittedComposition",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C02_PointerReachability_BeginDragAndPointerRelationship_AreRealEventSystemInput",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C03_HoverFocus_RaisesAndRestoresWithoutAuthoritativeMutation",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C04_Arm_RemainArmedAboveUpperEdge_AndDownwardDisarm",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C05_ReleaseBelow_CancelsWithoutAnyAuthoritativeMutationOrDuplicateView",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C06_TargetCompleteArmedRelease_SubmitsExactlyOneAcceptedCommand",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C07_ExplicitTargetRelease_StagesOneCardHighlightsTargetsWithoutMutation",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C08_TargetCancellation_EscapeAndRightClick_RestoreWithoutMutation",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C09_LegalTargetPointerSelection_SubmitsExactlyOneCompleteCommand",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C10_RepeatedPublicDragCancelCycles_HaveNoDriftDuplicatesOrStaleViews",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C11_ClickCompatibility_TargetCompleteAndExplicitTargetRoutesRemainFunctional",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C12_KeyboardCompatibility_NumberEscapeEnterAndSpaceRemainFunctional",
+    "Bloomdrawn.Tests.PlayMode.Acceptance.M1D01RuntimeDragAcceptanceTests.C13_ResponsiveRuntimeEvidence_ExercisesActualViewsAtAllRequiredResolutions"
+  ],
+  "bridge": {
+    "assembly": "Bloomdrawn.M1D01.AcceptanceInfrastructure",
+    "startCommand": "m1d01.acceptance.start",
+    "abortCommand": "m1d01.acceptance.abort",
+    "childDirectory": "bridge",
+    "statusFile": "bridge/status.json",
+    "requestFile": "bridge/request.json",
+    "resultJson": "bridge/results.json",
+    "resultXml": "bridge/results.xml",
+    "completionClaim": "bridge/completion.claim",
+    "lifecycle": [
+      "prepared",
+      "running",
+      "completing",
+      "completed",
+      "behavioral_failure",
+      "infrastructure_failure",
+      "aborted"
+    ],
+    "terminalLifecycle": [
+      "completed",
+      "behavioral_failure",
+      "infrastructure_failure",
+      "aborted"
+    ]
+  },
+  "expectedCounts": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "inconclusive": 0
+  },
+  "timeoutsSeconds": {
+    "editorStartup": 180,
+    "importCompile": 180,
+    "startAcknowledgement": 30,
+    "testRun": 900,
+    "postCompletionQuiescence": 5,
+    "normalShutdown": 30,
+    "abortShutdownBeforeForce": 5
+  },
+  "statusPolling": {
+    "pollIntervalMilliseconds": 250,
+    "transientReadGraceMilliseconds": 1500,
+    "transientReadRetryIntervalMilliseconds": 50,
+    "heartbeatTimeoutSeconds": 15,
+    "rereadDiskEveryAttempt": true,
+    "retainLastValidLifecycleDuringReplacement": true,
+    "failClosedAfterGrace": true
+  },
+  "limitsBytes": {
+    "editorLog": 67108864,
+    "xml": 16777216,
+    "json": 16777216,
+    "publicInputTrace": 4194304,
+    "screenshotEach": 16777216,
+    "screenshotsCombined": 134217728,
+    "nonLogEvidenceCombined": 268435456,
+    "watchdogContext": 262144,
+    "retainedEditorLogs": 201326592
+  },
+  "retention": {
+    "maximumEditorLogs": 8
+  },
+  "watchdogSignatures": [
+    "Access version should be odd when acquiring lock",
+    "Audio/CriticalSection.h:56"
+  ],
   "preexistingException": {
     "path": "Bloomdrawn-Unity.slnx",
     "sha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4"
   },
-  "implementationWorkingTreePaths": [
+  "runDirectoryOwnership": {
+    "rootOwner": "outer_runner",
+    "bridgeChildOwner": "bridge",
+    "exactBootstrapEntries": [
+      "run-ownership.json",
+      "Editor.log",
+      "commands.ndjson",
+      "lifecycle-observations.ndjson",
+      "git-before.txt",
+      "working-tree-before.json",
+      "protected-hashes-before.json",
+      "slnx-pre-run.json",
+      "slnx-backup.json",
+      "editor-ownership.json",
+      "recompile-status.json",
+      "editor-health.json",
+      "console-startup-to-pretest.json"
+    ],
+    "bridgeChild": "bridge",
+    "runnerWritesBridgeChild": false
+  },
+  "solutionLifecycle": {
+    "path": "Bloomdrawn-Unity.slnx",
+    "ownerBytes": 485,
+    "ownerSha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4",
+    "externalBackupRequired": true,
+    "atomicReplaceWithExplicitRollback": true,
+    "restoreAfterProvenShutdown": true
+  },
+  "preservedDirtyPaths": [
+    { "path": "agent-tasks/M1-D01-dd28-runtime-drag.md", "sha256": "751B304EA2E812448ACF35642FF5F010E4ED86F6E846BB7F22B031D15C3C0FF1" },
+    { "path": "acceptance/manifests/M1-D01-dd28-runtime-drag.yaml", "sha256": "65BC9F6137DE0A2A2367CC522CFA41BCB4C4142DF7C8D30F6A1DB96EB13B156F" },
+    { "path": "Assets/Bloomdrawn/Presentation/CardDragLayer.cs", "sha256": "895E5C546ECBCA473D4549F2227C6A010652E9157C70297D057BAAFA5990CEA1" },
+    { "path": "Assets/Bloomdrawn/Presentation/CombatCardView.cs", "sha256": "88B9C86355A2820276BF6BC11EBEF14EBE3A202DA7539CFBE448FD9C2F0CE5DD" },
+    { "path": "Assets/Bloomdrawn/Presentation/CombatHudView.cs", "sha256": "EE132DFCDFDDD08EE5483E0DFE84047B5B5ED1BE5C2955262EB73EF38BCA2681" },
+    { "path": "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs", "sha256": "9E0C663D2FAD01E24571A515EEBF13D56BDA6DD75A6EC0BDDA5834CC12B31E38" },
+    { "path": "Assets/Bloomdrawn/Presentation/HandInteraction.cs", "sha256": "85F2C5620BF73E508AAAF64C9BEDA437B1AD472752D83677F8F2AB2B5EBA2A10" },
+    { "path": "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs", "sha256": "39364A727B51E10E4244C48E7F3FEAF31A982235DEBFE68B7E67E42E6232F72E" },
+    { "path": "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta", "sha256": "990869A09387967EE6EADE795F7AF87BC21D8E16B92A058E26A420AAB9F308A4" },
+    { "path": "Bloomdrawn-Unity.slnx", "sha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4" }
+  ],
+  "authorizedAcceptancePaths": [
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
+    "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
+    "Tools/Acceptance/M1-D01-runner-contract.json",
+    "acceptance/locks/M1-D01-protected.sha256.json"
+  ],
+  "allowedDirtyPaths": [
+    "agent-tasks/M1-D01-dd28-runtime-drag.md",
+    "acceptance/manifests/M1-D01-dd28-runtime-drag.yaml",
     "Assets/Bloomdrawn/Presentation/CardDragLayer.cs",
     "Assets/Bloomdrawn/Presentation/CombatCardView.cs",
     "Assets/Bloomdrawn/Presentation/CombatHudView.cs",
     "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs",
     "Assets/Bloomdrawn/Presentation/HandInteraction.cs",
     "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs",
-    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta"
-  ],
-  "protectedMaintenancePaths": [
-    "Assets/Bloomdrawn/Tests/Acceptance.meta",
-    "Assets/Bloomdrawn/Tests/Acceptance/",
-    "Tools/Acceptance/",
-    "acceptance/locks/"
+    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta",
+    "Bloomdrawn-Unity.slnx",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
+    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
+    "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
+    "Tools/Acceptance/M1-D01-runner-contract.json",
+    "acceptance/locks/M1-D01-protected.sha256.json"
   ],
   "evidenceRoot": "Logs/M1-D01/Acceptance",
   "classificationExitCodes": {
