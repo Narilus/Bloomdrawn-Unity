@@ -4,7 +4,7 @@ mode: primary
 model: openai/gpt-5.6-luna
 reasoningEffort: max
 textVerbosity: low
-steps: 96
+steps: 156
 color: warning
 permission:
   read: allow
