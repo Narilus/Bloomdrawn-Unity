@@ -6,12 +6,19 @@ using UnityEngine.UI;
 
 namespace Bloomdrawn.Presentation
 {
-    public sealed class CombatCardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+    public sealed class CombatCardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler
     {
         private CombatStageRuntimeBootstrap bootstrap;
         private Image image;
         private GameObject armedCue;
         private bool dragged;
+        private bool dragging;
+        private bool hovered;
+        private bool staged;
+        private bool suppressHoverUntilExit;
+        private Vector2 restingPosition;
+        private float restingRotation;
+        private int restingDepth;
         public string CardId { get; private set; }
         public string OwnerId { get; private set; }
         public bool RequiresEnemyTarget { get; private set; }
@@ -76,14 +83,68 @@ namespace Bloomdrawn.Presentation
             if (image != null) image.color = armed ? new Color(.24f, .44f, .25f, 1f) : new Color(.16f, .18f, .28f, 1f);
             if (armedCue != null) armedCue.SetActive(armed);
         }
+        public void SetRestingPose(HandFanPose pose)
+        {
+            dragging = false;
+            staged = false;
+            hovered = false;
+            restingPosition = pose.Position;
+            restingRotation = pose.Rotation;
+            restingDepth = pose.Depth;
+            SetArmed(false);
+            ApplyRestingPose();
+        }
+        public void SetHovered(bool value)
+        {
+            hovered = value;
+            if (dragging || staged) return;
+            ApplyRestingPose();
+        }
+        public void SetDragging(bool value)
+        {
+            dragging = value;
+            if (value)
+            {
+                hovered = false;
+                staged = false;
+                transform.SetAsLastSibling();
+            }
+        }
+        public void SuppressHoverUntilExit()
+        {
+            suppressHoverUntilExit = true;
+            SetHovered(false);
+        }
+        public void SetStaged(bool value)
+        {
+            staged = value;
+            if (value)
+            {
+                dragging = false;
+                hovered = false;
+                transform.SetAsLastSibling();
+            }
+        }
         public void OnBeginDrag(PointerEventData eventData) { dragged = true; bootstrap.BeginCardDrag(this, eventData); }
         public void OnDrag(PointerEventData eventData) { bootstrap.UpdateCardDrag(this, eventData); }
         public void OnEndDrag(PointerEventData eventData) { bootstrap.ReleaseCardDrag(this); }
+        public void OnPointerEnter(PointerEventData eventData) { if (!suppressHoverUntilExit) bootstrap.HoverCard(this); }
+        public void OnPointerExit(PointerEventData eventData) { suppressHoverUntilExit = false; bootstrap.UnhoverCard(this); }
+        public void OnSelect(BaseEventData eventData) { if (!suppressHoverUntilExit) bootstrap.HoverCard(this); }
+        public void OnDeselect(BaseEventData eventData) { bootstrap.UnhoverCard(this); }
         public void OnPointerClick(PointerEventData eventData)
         {
             if (eventData.button == PointerEventData.InputButton.Right) bootstrap.CancelInteraction();
             else if (!dragged) bootstrap.ClickCard(this);
             dragged = false;
+        }
+
+        private void ApplyRestingPose()
+        {
+            RectTransform.anchoredPosition = restingPosition + (hovered ? Vector2.up * 32f : Vector2.zero);
+            RectTransform.localRotation = Quaternion.Euler(0, 0, restingRotation);
+            if (transform.parent == null) return;
+            transform.SetSiblingIndex(hovered ? transform.parent.childCount - 1 : restingDepth);
         }
 
         private static TextMeshProUGUI CreateText(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float size, TextAlignmentOptions alignment)
@@ -101,5 +162,6 @@ namespace Bloomdrawn.Presentation
             text.raycastTarget = false;
             return text;
         }
+
     }
 }

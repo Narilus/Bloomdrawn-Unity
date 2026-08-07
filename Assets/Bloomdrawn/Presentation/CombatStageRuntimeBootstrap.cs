@@ -24,6 +24,7 @@ namespace Bloomdrawn.Presentation
         private CardInteractionController interaction;
         private readonly Dictionary<string, string> displayNames = new Dictionary<string, string>(StringComparer.Ordinal);
         private string rejection;
+        private Vector2 dragPointerOffset;
 
         public bool IsBootstrapped => flow != null;
         public CombatRuntimeFlow Flow => flow;
@@ -94,17 +95,20 @@ namespace Bloomdrawn.Presentation
 
         public void BeginCardDrag(CombatCardView card, PointerEventData eventData)
         {
-            if (!CanAcceptPlayerInput() || card == null) return;
+            if (!CanAcceptPlayerInput() || card == null || (interaction.State != CardInteractionState.Resting && interaction.State != CardInteractionState.Hovered)) return;
+            card.SetHovered(false);
+            var cardScreenPosition = RectTransformUtility.WorldToScreenPoint(eventData.pressEventCamera, card.RectTransform.position);
+            dragPointerOffset = cardScreenPosition - eventData.pressPosition;
             interaction.BeginDrag(card.CardId, card.OwnerId, card.RequiresEnemyTarget);
             dragLayer.ReparentPreservingScreenPosition(card.RectTransform, eventData.position, eventData.pressEventCamera);
+            card.SetDragging(true);
             card.SetArmed(false);
         }
 
         public void UpdateCardDrag(CombatCardView card, PointerEventData eventData)
         {
-            if (interaction.State != CardInteractionState.DraggingArmed && interaction.State != CardInteractionState.DraggingDisarmed) return;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer.DragLayer, eventData.position, eventData.pressEventCamera, out var localPoint);
-            card.RectTransform.anchoredPosition = localPoint;
+            if (card == null || interaction.ActiveCardId != card.CardId || (interaction.State != CardInteractionState.DraggingArmed && interaction.State != CardInteractionState.DraggingDisarmed)) return;
+            dragLayer.MoveToScreenPoint(card.RectTransform, eventData.position + dragPointerOffset, eventData.pressEventCamera);
             var armed = dragLayer.IsAbovePlayArea(eventData.position, eventData.pressEventCamera);
             interaction.UpdateArmed(armed);
             card.SetArmed(armed);
@@ -113,18 +117,33 @@ namespace Bloomdrawn.Presentation
         public void ReleaseCardDrag(CombatCardView card)
         {
             if (card == null) return;
+            card.SuppressHoverUntilExit();
             interaction.Release();
             Refresh();
         }
 
         public void ClickCard(CombatCardView card)
         {
-            if (!CanAcceptPlayerInput() || card == null) return;
+            if (!CanAcceptPlayerInput() || card == null || (interaction.State != CardInteractionState.Resting && interaction.State != CardInteractionState.Hovered)) return;
             interaction.BeginDrag(card.CardId, card.OwnerId, card.RequiresEnemyTarget);
             interaction.UpdateArmed(true);
-            if (card.RequiresEnemyTarget) card.RectTransform.SetParent(dragLayer.DragLayer, true);
+            if (card.RequiresEnemyTarget) dragLayer.ReparentPreservingScreenPosition(card.RectTransform, RectTransformUtility.WorldToScreenPoint(null, card.RectTransform.position), null);
             interaction.Release();
             Refresh();
+        }
+
+        public void HoverCard(CombatCardView card)
+        {
+            if (!CanAcceptPlayerInput() || card == null) return;
+            interaction.Hover(card.CardId);
+            if (interaction.State == CardInteractionState.Hovered && interaction.ActiveCardId == card.CardId) card.SetHovered(true);
+        }
+
+        public void UnhoverCard(CombatCardView card)
+        {
+            if (card == null) return;
+            interaction.ExitHover(card.CardId);
+            card.SetHovered(false);
         }
 
         public void SelectEnemy(string runtimeId)

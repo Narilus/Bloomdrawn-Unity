@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Bloomdrawn.Engine.Combat;
 using TMPro;
 using UnityEngine;
@@ -42,34 +43,62 @@ namespace Bloomdrawn.Presentation
                 : "COMBAT LOG\nRejected: " + rejection;
             endTurnButton.interactable = state.Phase == CombatPhase.PlayerAction && interactionState != CardInteractionState.TargetSelection;
             foreach (var actor in actorViews) actor.Refresh(state, interactionState == CardInteractionState.TargetSelection, bootstrap.DisplayNameFor);
-            RebuildHand(state);
+            RebuildHand(state, interactionState);
         }
 
         public bool TryGetCard(string cardId, out CombatCardView card) => cards.TryGetValue(cardId, out card);
 
         public void ClearDetachedCardViews()
         {
+            var handIds = new HashSet<string>();
+            if (bootstrap != null && bootstrap.CurrentState != null)
+                foreach (var instance in bootstrap.CurrentState.Deck.Hand) handIds.Add(instance.Id);
             foreach (var card in FindObjectsByType<CombatCardView>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (!card.transform.IsChildOf(handContainer)) Destroy(card.gameObject);
+                if (!card.transform.IsChildOf(handContainer) && !handIds.Contains(card.CardId))
+                {
+                    cards.Remove(card.CardId);
+                    Destroy(card.gameObject);
+                }
         }
 
-        private void RebuildHand(CombatState state)
+        private void RebuildHand(CombatState state, CardInteractionState interactionState)
         {
-            foreach (Transform child in handContainer) Destroy(child.gameObject);
-            cards.Clear();
+            var handIds = new HashSet<string>(state.Deck.Hand.Select(instance => instance.Id));
+            foreach (var entry in cards.ToList())
+            {
+                if (entry.Value != null && handIds.Contains(entry.Key)) continue;
+                if (entry.Value != null) Destroy(entry.Value.gameObject);
+                cards.Remove(entry.Key);
+            }
+
             var poses = HandFanLayout.Calculate(state.Deck.Hand.Count, handContainer.rect.width <= 1 ? 1040 : handContainer.rect.width, 188f, 22f, 8f);
+            var detachedId = interactionState == CardInteractionState.DraggingArmed || interactionState == CardInteractionState.DraggingDisarmed || interactionState == CardInteractionState.TargetSelection
+                ? bootstrap.ActiveInteractionCardId
+                : null;
             for (var i = 0; i < state.Deck.Hand.Count; i++)
             {
                 var instance = state.Deck.Hand[i];
-                var cardObject = CombatCardView.Create(
-                    handContainer,
-                    bootstrap,
-                    instance,
-                    bootstrap.DisplayNameFor(instance.DefinitionId, "Fixture Card"));
-                cardObject.RectTransform.anchoredPosition = poses[i].Position;
-                cardObject.RectTransform.localRotation = Quaternion.Euler(0, 0, poses[i].Rotation);
-                cardObject.transform.SetSiblingIndex(poses[i].Depth);
-                cards.Add(instance.Id, cardObject);
+                if (!cards.TryGetValue(instance.Id, out var cardObject) || cardObject == null)
+                {
+                    cardObject = CombatCardView.Create(
+                        handContainer,
+                        bootstrap,
+                        instance,
+                        bootstrap.DisplayNameFor(instance.DefinitionId, "Fixture Card"));
+                    cards[instance.Id] = cardObject;
+                }
+
+                if (instance.Id == detachedId)
+                {
+                    if (interactionState == CardInteractionState.TargetSelection) cardObject.SetStaged(true);
+                    else cardObject.SetDragging(true);
+                    continue;
+                }
+
+                cardObject.transform.SetParent(handContainer, false);
+                cardObject.SetRestingPose(poses[i]);
+                if (interactionState == CardInteractionState.Hovered && bootstrap.ActiveInteractionCardId == instance.Id)
+                    cardObject.SetHovered(true);
             }
         }
 

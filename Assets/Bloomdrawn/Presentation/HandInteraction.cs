@@ -29,7 +29,18 @@ namespace Bloomdrawn.Presentation
         public CardInteractionController(ICompleteCardCommandSink sink) { this.sink=sink ?? throw new ArgumentNullException(nameof(sink)); }
         public CardInteractionState State { get; private set; } = CardInteractionState.Resting;
         public string ActiveCardId { get; private set; } public string OwnerId { get; private set; } public bool RequiresEnemyTarget { get; private set; }
-        public void Hover(string cardId) { if (State == CardInteractionState.Resting) { ActiveCardId=cardId; State=CardInteractionState.Hovered; } }
+        public void Hover(string cardId)
+        {
+            if (State == CardInteractionState.Resting || State == CardInteractionState.Hovered)
+            {
+                ActiveCardId = cardId;
+                State = CardInteractionState.Hovered;
+            }
+        }
+        public void ExitHover(string cardId)
+        {
+            if (State == CardInteractionState.Hovered && ActiveCardId == cardId) Cancel();
+        }
         public void BeginDrag(string cardId, string ownerId, bool requiresEnemyTarget) { if (State == CardInteractionState.DraggingArmed || State == CardInteractionState.DraggingDisarmed || State == CardInteractionState.TargetSelection) throw new InvalidOperationException("Only one card interaction session is allowed."); ActiveCardId=cardId; OwnerId=ownerId; RequiresEnemyTarget=requiresEnemyTarget; State=CardInteractionState.DraggingDisarmed; }
         public void UpdateArmed(bool abovePlayArea) { if (State == CardInteractionState.DraggingArmed || State == CardInteractionState.DraggingDisarmed) State=abovePlayArea?CardInteractionState.DraggingArmed:CardInteractionState.DraggingDisarmed; }
         public bool Release() { if (State != CardInteractionState.DraggingArmed) { Cancel(); return false; } if (RequiresEnemyTarget) { State=CardInteractionState.TargetSelection; return false; } return Submit(null); }

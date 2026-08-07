@@ -12,18 +12,28 @@ namespace Bloomdrawn.Presentation
         public bool IsAbovePlayArea(Vector2 screenPoint, Camera eventCamera)
         {
             RectTransformUtility.ScreenPointToLocalPointInRectangle(playArea, screenPoint, eventCamera, out var local);
-            return playArea.rect.Contains(local);
+            return local.y >= playArea.rect.yMin;
         }
         public void ReparentPreservingScreenPosition(RectTransform card, Vector2 screenPoint, Camera eventCamera)
         {
-            card.SetParent(dragLayer, false);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPoint, eventCamera, out var local);
-            card.anchoredPosition = local;
+            var worldPosition = card.position;
+            var worldRotation = card.rotation;
+            card.SetParent(dragLayer, true);
+            card.position = worldPosition;
+            card.rotation = worldRotation;
+            card.SetAsLastSibling();
         }
 
         public void ReparentPreservingScreenPosition(RectTransform card, Camera eventCamera)
         {
             ReparentPreservingScreenPosition(card, RectTransformUtility.WorldToScreenPoint(eventCamera, card.position), eventCamera);
         }
+
+        public void MoveToScreenPoint(RectTransform card, Vector2 screenPoint, Camera eventCamera)
+        {
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPoint, eventCamera, out var local)) return;
+            card.position = dragLayer.TransformPoint(local);
+        }
+
     }
 }
