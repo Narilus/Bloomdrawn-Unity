@@ -25,8 +25,8 @@ Implement **exactly one approved task at a time**.
 
 Before editing:
 
-- identify the active task ID and task-plan file;
-- read its Objective, In Scope, Non-Goals, required source documents, tests, validation commands, and exit criteria;
+- identify the active task from either a sufficiently precise owner prompt or, when one exists, its task plan under `plans/tasks/`;
+- read the applicable objective, scope, non-goals, authority, acceptance behaviour, constraints, and stop conditions;
 - inspect relevant existing code and assets before proposing changes;
 - state a concise preflight: current understanding, files/systems likely affected, and any blocking ambiguity.
 
@@ -41,6 +41,16 @@ During implementation:
 
 The user is the scope-changing authority. An agent may identify a needed change; it may not silently approve that change itself.
 
+The normal workforce path is:
+
+```text
+Owner -> Builder -> Auditor -> Git Steward
+```
+
+The Planner is optional for genuine design, scope, or architecture ambiguity and for work large enough to benefit from decomposition. The Acceptance Engineer is optional and risk-based. The Sol Specialist is exceptional and returns a solved bounded blocker to the Builder; it is not a routine pipeline stage. One active implementation task at a time remains mandatory.
+
+Formal planning, when useful, lives in one concise task plan under `plans/tasks/`. New `agent-tasks/**` packets and `acceptance/manifests/**` are not required. Existing packets and manifests are historical material and may remain applicable to the completed work that created them.
+
 ## 3. Unity baseline
 
 - Host engine: **Unity 6.5 (`6000.5.x`)**.
@@ -52,9 +62,9 @@ The user is the scope-changing authority. An agent may identify a needed change;
 
 Do not assume an API merely because it exists in another Unity release. When Unity behavior is version-sensitive, check the current Unity 6.5 documentation or the package/version actually installed in the project.
 
-## 4. Unity CLI and Pipeline are first-class agent tools
+## 4. Unity tool choice
 
-Unity CLI and Unity Pipeline are the preferred machine-facing interface to the running Editor when they can perform or verify the operation cleanly.
+Unity CLI and Unity Pipeline are supported tools, not privileged truth. Prefer the smallest reliable supported interface that actually proves the task: project validation scripts, direct Unity Test Framework CLI, Unity CLI/Pipeline, automated Editor commands, or a built Player. Never substitute a façade merely because one interface is unreliable.
 
 The Unity CLI is experimental. **Never rely on remembered CLI syntax when discovery is cheap.** At the start of CLI-heavy work, use the installed tool's help/discovery surface, for example:
 
@@ -110,8 +120,18 @@ Waiting for Unity startup, import, compilation, domain reload, test execution, o
 - Poll internally; do not emit repeated unchanged chat/status messages such as “M1D remains active.”
 - Report meaningful state changes, the final successful state, or a concrete timeout/failure.
 - A retry must be tied to observable evidence such as process appearance, Pipeline connection, compilation transition, test completion, or command exit status.
-- If the timeout expires or repeated checks provide no actionable progress, diagnose the last observed state and stop with the concrete blocker rather than continuing an unproductive loop.
+- If a timeout expires or repeated checks provide no actionable progress, diagnose the last observed state. Continue through an equivalent supported interface when it can prove the same result; stop only when no credible bounded diagnosis or proof path remains.
 - Never treat repeated status output as progress or as a substitute for repository/tool evidence.
+
+Before escalation, classify the observed result as exactly one of:
+
+- `BEHAVIOR_FAILURE`: approved product behaviour is wrong;
+- `TEST_FAILURE`: a test, fixture, isolation boundary, or assertion is wrong;
+- `INFRASTRUCTURE_FAILURE`: runner, bridge, process, polling, logging, evidence, or orchestration failed;
+- `EXPECTED_GENERATED_CHANGE`: a known generated/restorable file changed as a normal tool effect;
+- `UNEXPECTED_PROJECT_MUTATION`: source or protected state changed without task ownership or explanation.
+
+Only genuine semantic, scope, or safety blockers immediately return control to the owner. Diagnose ordinary test, infrastructure, generated-file, and tooling failures within the responsible role's scope.
 
 ## 5. Prefer safe Unity authoring paths
 
@@ -233,7 +253,7 @@ When modifying combat layout/card interaction, validate at all aspect ratios req
 
 ## 10. Testing and verification
 
-Use the smallest test set that proves the active change, then run the broader gate required by the task plan.
+Use the smallest test set that proves the active change, then run any broader gate required by the owner prompt or task plan.
 
 Expected categories include as applicable:
 
@@ -247,6 +267,10 @@ Expected categories include as applicable:
 - manual or computer-use interaction checks when visual/gesture behavior cannot be proven headlessly.
 
 For interaction-sensitive work, tests should cover cancellation and rejection paths, not only successful play.
+
+Tests and validators must be isolated. They must not save generated content over committed production scenes or assets as a normal setup mechanism. Scene-authoring tests must use disposable/temp scene paths or otherwise guarantee cleanup. Existing `CombatStageAuthoring.CreateOrUpdate()` Edit Mode behaviour is a follow-up policy concern because it can author a committed production scene during test setup; do not copy that pattern into new tests.
+
+Prefer exact test assemblies, classes, or explicit filters for deterministic gates. If an aggregate namespace, wrapper, or filter invocation is broken or hangs while equivalent complete explicit coverage passes through a supported underlying runner, classify the aggregate problem as infrastructure rather than product failure. This rule never excuses missing test coverage.
 
 A task is not complete until:
 
@@ -264,6 +288,16 @@ Do not weaken, delete, skip, or rewrite a failing test merely to make the gate g
 Before editing, inspect repository state. Do not overwrite unrelated user changes.
 
 Keep diffs task-focused. Do not mass-reformat unrelated files, regenerate assets unnecessarily, or commit caches/build products.
+
+Classify repository paths before treating a change as a blocker:
+
+- authority/protected files are immutable within the active role's contract;
+- task-owned mutable files are the approved implementation and developer-test surface;
+- infrastructure-owned mutable files include runners, bridges, polling, process management, logging, evidence serialization, retention, and generated-file cleanup;
+- generated/restorable files are reproducible tool outputs rather than protected product state merely because Git reports them;
+- ignored evidence/cache/output is never authoritative source.
+
+`Bloomdrawn-Unity.slnx` is a Unity-regenerated solution file and must not drive task certification. Preserve an existing owner change unless expressly authorized otherwise, but classify normal Unity rewrites as `EXPECTED_GENERATED_CHANGE` rather than product failure.
 
 Do not create commits, tags, branches, push, reset, rebase, clean, or discard changes unless the user or active task explicitly authorizes that Git action.
 
