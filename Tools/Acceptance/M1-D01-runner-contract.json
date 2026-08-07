@@ -85,7 +85,19 @@
     "retainedEditorLogs": 201326592
   },
   "retention": {
-    "maximumEditorLogs": 8
+    "maximumEditorLogs": 8,
+    "preservedRunIds": [
+      "74373dba441549599c28fb405fb9b802",
+      "3e95d637a14840de91aef6c9dc07be58",
+      "6c32802b18e047a9a834893be9cb70ec",
+      "a1fea5b810944218ba38fef60bc9dbdd"
+    ],
+    "prunableFinalClassifications": [
+      "INFRASTRUCTURE_FAILURE",
+      "ENVIRONMENTAL_BLOCKAGE",
+      "BEHAVIORAL_FAILURE",
+      "PASS"
+    ]
   },
   "watchdogSignatures": [
     "Access version should be odd when acquiring lock",
@@ -132,8 +144,6 @@
     { "path": "Assets/Bloomdrawn/Presentation/CombatHudView.cs", "sha256": "EE132DFCDFDDD08EE5483E0DFE84047B5B5ED1BE5C2955262EB73EF38BCA2681" },
     { "path": "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs", "sha256": "9E0C663D2FAD01E24571A515EEBF13D56BDA6DD75A6EC0BDDA5834CC12B31E38" },
     { "path": "Assets/Bloomdrawn/Presentation/HandInteraction.cs", "sha256": "85F2C5620BF73E508AAAF64C9BEDA437B1AD472752D83677F8F2AB2B5EBA2A10" },
-    { "path": "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs", "sha256": "39364A727B51E10E4244C48E7F3FEAF31A982235DEBFE68B7E67E42E6232F72E" },
-    { "path": "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta", "sha256": "990869A09387967EE6EADE795F7AF87BC21D8E16B92A058E26A420AAB9F308A4" },
     { "path": "Bloomdrawn-Unity.slnx", "sha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4" }
   ],
   "authorizedAcceptancePaths": [

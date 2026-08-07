@@ -248,6 +248,71 @@ function Assert-PreservedHashes {
     }
 }
 
+function Get-PrunableFinalizedEditorLog {
+    param([System.IO.FileInfo]$EditorLog)
+    $runRoot = $EditorLog.Directory
+    if ($null -eq $runRoot -or ($runRoot.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
+    $candidateRunId = $runRoot.Name
+    if ($candidateRunId -notmatch '^[0-9a-fA-F]{32}$') { return $null }
+    if (@($script:contract.retention.preservedRunIds | ForEach-Object { [string]$_ }) -contains $candidateRunId) { return $null }
+
+    $resultPath = Join-Path $runRoot.FullName 'acceptance-result.json'
+    if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { return $null }
+    try { $result = [IO.File]::ReadAllText($resultPath, [Text.Encoding]::UTF8) | ConvertFrom-Json -DateKind String } catch { return $null }
+    if ([string]$result.runId -ne $candidateRunId -or [string]::IsNullOrWhiteSpace([string]$result.completedUtc)) { return $null }
+    $classification = [string]$result.classification
+    if (@($script:contract.retention.prunableFinalClassifications | ForEach-Object { [string]$_ }) -notcontains $classification) { return $null }
+
+    $completed = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse([string]$result.completedUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$completed)) { return $null }
+    $statusCandidate = Join-Path $runRoot.FullName 'bridge\status.json'
+    if (Test-Path -LiteralPath $statusCandidate -PathType Leaf) {
+        try {
+            $status = [IO.File]::ReadAllText($statusCandidate, [Text.Encoding]::UTF8) | ConvertFrom-Json -DateKind String
+            if ([string]$status.lifecycle -in @('prepared', 'running', 'completing')) { return $null }
+        }
+        catch { return $null }
+    }
+
+    $editorPid = if ($null -eq $result.editorPid) { 0 } else { [int]$result.editorPid }
+    if ($editorPid -gt 0) {
+        if ($null -eq $result.shutdown -or -not [bool]$result.shutdown.attempted -or -not [bool]$result.shutdown.pidExited -or
+            [int]$result.shutdown.projectOwnerCount -ne 0 -or -not [bool]$result.shutdown.pipelineAbsent -or
+            (Get-Process -Id $editorPid -ErrorAction SilentlyContinue)) { return $null }
+    }
+
+    $priority = @($script:contract.retention.prunableFinalClassifications).IndexOf($classification)
+    return [pscustomobject][ordered]@{
+        runId = $candidateRunId
+        path = $EditorLog.FullName
+        bytes = [long]$EditorLog.Length
+        classification = $classification
+        completedUtc = $completed.UtcDateTime
+        priority = $priority
+    }
+}
+
+function Invoke-EditorLogRetention {
+    $maximumLogs = [int]$script:contract.retention.maximumEditorLogs
+    $maximumBytes = [long]$script:contract.limitsBytes.retainedEditorLogs
+    while ($true) {
+        $logs = @(Get-ChildItem -LiteralPath $runsRoot -File -Filter 'Editor.log' -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -ne $editorLog -and $_.Length -gt 2 })
+        $bytes = [long]0
+        foreach ($log in $logs) { $bytes += [long]$log.Length }
+        if ($logs.Count -le $maximumLogs -and $bytes -lt $maximumBytes) { return }
+
+        $candidate = @($logs | ForEach-Object { Get-PrunableFinalizedEditorLog $_ } | Where-Object { $null -ne $_ } |
+            Sort-Object priority, completedUtc, runId)[0]
+        if ($null -eq $candidate) {
+            Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' 'Task-local Editor-log retention limit reached with no safely prunable finalized non-designated log; owner archival is required.' 20
+        }
+        [IO.File]::Delete([string]$candidate.path)
+        if (Test-Path -LiteralPath ([string]$candidate.path)) { Throw-RunFailure 'INFRASTRUCTURE_FAILURE' "Finalized Editor log pruning failed: $($candidate.path)" 30 }
+        Record-Command "retention prune finalized Editor.log run=$($candidate.runId)" 0 ([ordered]@{ runId=$candidate.runId; classification=$candidate.classification; completedUtc=$candidate.completedUtc.ToString('o'); bytes=$candidate.bytes; preservedRunIds=@($script:contract.retention.preservedRunIds) })
+    }
+}
+
 function Assert-AllowedDirtySnapshot {
     param([object[]]$Snapshot)
     $allowed = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -805,6 +870,7 @@ try {
     $script:lock = Get-Content -Raw -LiteralPath $lockPath | ConvertFrom-Json
     if ([int]$script:contract.schemaVersion -ne 2) { Throw-RunFailure 'INFRASTRUCTURE_FAILURE' 'Runner contract schema version is not 2.' 30 }
 
+    Invoke-EditorLogRetention
     $existingLogs = @(Get-ChildItem -LiteralPath $runsRoot -File -Filter 'Editor.log' -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -ne $editorLog -and $_.Length -gt 2 })
     $retainedBytes = 0L
     foreach ($existingLog in $existingLogs) { $retainedBytes += [long]$existingLog.Length }
