@@ -43,10 +43,10 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             Assert.That(context.Bootstrap.CurrentState.Rng.Streams, Is.Not.Empty);
             Assert.That(context.Cards.Length, Is.EqualTo(context.Bootstrap.CurrentState.Deck.Hand.Count));
             Assert.That(context.Cards.Length, Is.GreaterThan(0));
-            Assert.That(Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None), Has.Length.EqualTo(1), "runtime-health: extra Canvas");
-            Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1), "runtime-health: extra EventSystem");
-            Assert.That(Object.FindObjectsByType<InputSystemUIInputModule>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
-            Assert.That(Object.FindObjectsByType<CombatActorView>(FindObjectsSortMode.None).Select(actor => actor.RuntimeId).Distinct(StringComparer.Ordinal).Count(),
+            Assert.That(Object.FindObjectsByType<Canvas>(), Has.Length.EqualTo(1), "runtime-health: extra Canvas");
+            Assert.That(Object.FindObjectsByType<EventSystem>(), Has.Length.EqualTo(1), "runtime-health: extra EventSystem");
+            Assert.That(Object.FindObjectsByType<InputSystemUIInputModule>(), Has.Length.EqualTo(1));
+            Assert.That(Object.FindObjectsByType<CombatActorView>().Select(actor => actor.RuntimeId).Distinct(StringComparer.Ordinal).Count(),
                 Is.EqualTo(context.Bootstrap.CurrentState.Setup.Party.Count + context.Bootstrap.CurrentState.Setup.Enemies.Count));
             Evidence("ordinary-bootstrap", "pass", context, "Committed scene automatically produced the fixture session and runtime views.");
             LogAssert.NoUnexpectedReceived();
@@ -79,7 +79,7 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.DraggingDisarmed),
                 "pointer-reaches-runtime-card: public pointer input did not dispatch begin/drag to the runtime card");
             Assert.That(context.Bootstrap.ActiveInteractionCardId, Is.EqualTo(card.CardId));
-            Assert.That(Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None), Does.Contain(card), "active runtime card was destroyed during drag");
+            Assert.That(Object.FindObjectsByType<CombatCardView>(), Does.Contain(card), "active runtime card was destroyed during drag");
             Assert.That(Vector2.Distance(cardPoint, dragPoint), Is.LessThanOrEqualTo(PositionTolerance), "drag-position: card lost pointer relationship or jumped coordinates");
             Assert.That(Vector3.Distance(card.RectTransform.lossyScale, scaleBefore), Is.LessThan(.02f), "drag-position: scale jumped during reparenting");
 
@@ -286,7 +286,7 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.TargetSelection));
             before.AssertUnchanged(context.Bootstrap, "legal-target-once staging");
 
-            var target = Object.FindFirstObjectByType<CombatEnemyTargetView>();
+            var target = Object.FindAnyObjectByType<CombatEnemyTargetView>();
             var intended = target.GetComponentInParent<CombatActorView>().RuntimeId;
             yield return Click(mouse, target.GetComponent<RectTransform>(), MouseButton.Left);
             yield return Frames(3);
@@ -347,12 +347,12 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             Assert.That(context.Bootstrap.Flow.Session.EventHistory.Skip(beforeComplete).Count(e => e.Kind == "combat.card-played"), Is.EqualTo(1));
 
             yield return WaitForPlayerAction(context.Bootstrap);
-            var explicitCard = Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None).First(view => view.RequiresEnemyTarget);
+            var explicitCard = Object.FindObjectsByType<CombatCardView>().First(view => view.RequiresEnemyTarget);
             var beforeExplicit = context.Bootstrap.Flow.Session.EventHistory.Count;
             yield return Click(mouse, explicitCard.RectTransform, MouseButton.Left);
             yield return Frames(2);
             Assert.That(context.Bootstrap.InteractionState, Is.EqualTo(CardInteractionState.TargetSelection));
-            yield return Click(mouse, Object.FindFirstObjectByType<CombatEnemyTargetView>().GetComponent<RectTransform>(), MouseButton.Left);
+            yield return Click(mouse, Object.FindAnyObjectByType<CombatEnemyTargetView>().GetComponent<RectTransform>(), MouseButton.Left);
             yield return Frames(3);
             Assert.That(context.Bootstrap.Flow.Session.EventHistory.Skip(beforeExplicit).Count(e => e.Kind == "combat.card-played"), Is.EqualTo(1));
             Evidence("click-compatibility", "pass", context, "target-complete and explicit-target click routes each submitted once");
@@ -475,19 +475,19 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
             yield return SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Single);
             yield return WaitFor(() =>
             {
-                var bootstrap = Object.FindFirstObjectByType<CombatStageRuntimeBootstrap>();
+                var bootstrap = Object.FindAnyObjectByType<CombatStageRuntimeBootstrap>();
                 return bootstrap != null && bootstrap.IsBootstrapped && bootstrap.CurrentState != null &&
                        bootstrap.CurrentState.Phase == CombatPhase.PlayerAction && !bootstrap.Flow.Session.IsInputLocked &&
-                       Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None).Length > 0;
+                       Object.FindObjectsByType<CombatCardView>().Length > 0;
             }, 180, "ordinary CombatStage automatic bootstrap");
-            context.Bootstrap = Object.FindFirstObjectByType<CombatStageRuntimeBootstrap>();
-            context.DragLayer = Object.FindFirstObjectByType<CardDragLayer>();
+            context.Bootstrap = Object.FindAnyObjectByType<CombatStageRuntimeBootstrap>();
+            context.DragLayer = Object.FindAnyObjectByType<CardDragLayer>();
             context.Bootstrap.Flow.StateChanged += submission =>
             {
                 if (submission.IsAccepted) context.AcceptedCommandCount++;
                 else context.RejectedCommandCount++;
             };
-            context.Cards = Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None)
+            context.Cards = Object.FindObjectsByType<CombatCardView>()
                 .OrderBy(card => context.Bootstrap.CurrentState.Deck.Hand.ToList().FindIndex(instance => instance.Id == card.CardId)).ToArray();
         }
 
@@ -592,18 +592,18 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
 
         private static int HighlightedTargets()
         {
-            return Object.FindObjectsByType<CombatEnemyTargetView>(FindObjectsSortMode.None)
+            return Object.FindObjectsByType<CombatEnemyTargetView>()
                 .Count(target => target.GetComponentInChildren<Image>() != null && target.GetComponentInChildren<Image>().color.a > .2f);
         }
 
         private static IReadOnlyList<CombatCardView> ActiveViews(string cardId)
         {
-            return Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None).Where(view => view.CardId == cardId && view.gameObject.activeInHierarchy).ToList();
+            return Object.FindObjectsByType<CombatCardView>().Where(view => view.CardId == cardId && view.gameObject.activeInHierarchy).ToList();
         }
 
         private static void AssertSingleViewsMatchHand(CombatStageRuntimeBootstrap bootstrap, string criterion)
         {
-            var views = Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None).Where(view => view.gameObject.activeInHierarchy).ToList();
+            var views = Object.FindObjectsByType<CombatCardView>().Where(view => view.gameObject.activeInHierarchy).ToList();
             var hand = bootstrap.CurrentState.Deck.Hand.Select(card => card.Id).ToList();
             Assert.That(views.Count, Is.EqualTo(hand.Count), criterion + ": active view count differs from authoritative hand count");
             foreach (var id in hand) Assert.That(views.Count(view => view.CardId == id), Is.EqualTo(1), criterion + ": expected exactly one active view for " + id);
@@ -642,10 +642,10 @@ namespace Bloomdrawn.Tests.PlayMode.Acceptance
 
         private static IEnumerable<RectTransform> RequiredRuntimeRects()
         {
-            foreach (var card in Object.FindObjectsByType<CombatCardView>(FindObjectsSortMode.None)) yield return card.RectTransform;
-            var playArea = Object.FindFirstObjectByType<CardDragLayer>();
+            foreach (var card in Object.FindObjectsByType<CombatCardView>()) yield return card.RectTransform;
+            var playArea = Object.FindAnyObjectByType<CardDragLayer>();
             if (playArea != null) yield return playArea.PlayArea;
-            foreach (var target in Object.FindObjectsByType<CombatEnemyTargetView>(FindObjectsSortMode.None)) yield return target.GetComponent<RectTransform>();
+            foreach (var target in Object.FindObjectsByType<CombatEnemyTargetView>()) yield return target.GetComponent<RectTransform>();
             var endTurn = GameObject.Find("End Turn");
             if (endTurn != null) yield return endTurn.GetComponent<RectTransform>();
         }
