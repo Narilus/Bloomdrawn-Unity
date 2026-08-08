@@ -1,2217 +1,1399 @@
-# Bloomdrawn - Implementation Plan
+# Bloomdrawn — Implementation Plan (v2)
 
-> Companion to `docs/DESIGN.md`. This document defines sequencing, architectural boundaries, executable task groups, verification, and change control for implementation. When this plan and `docs/DESIGN.md` conflict, `docs/DESIGN.md` wins and this plan must be revised before implementation continues.
+**Status:** Draft for owner review
+**Authority:** Companion to `docs/DESIGN.md`. Where this plan and `docs/DESIGN.md` disagree, `docs/DESIGN.md` wins and this plan is revised before work continues.
+**Supersedes:** the prior implementation plan in its entirety. This document is a ground-up rewrite, not a patch. It does not inherit the prior plan's task decomposition, its milestone granularity, or its process assumptions except where those are explicitly re-stated here.
 
 ---
 
-## 0. Implementation Baseline
+## PART I — GOVERNANCE AND CONTRACTS
 
-Bloomdrawn is implemented as a Unity 6.5, C#-based 2D project with a deterministic rules engine, explicit task boundaries, schema-driven content, isolated non-production fixtures, golden tests, source-of-truth governance, and milestone gates. Permanent combat presentation infrastructure begins in M1 so battlefield composition, independent actors, card feel, drag stability, target selection, and event sequencing are validated as part of the first playable combat path.
+### 0. Purpose, Authority, and Source of Truth
 
-### 0.1 Core Implementation Commitments
+#### 0.1 What this document is
 
-1. **Unity 6.5 (`6000.5.x`) + C# is the host stack.** Windows is the primary development/validation target; public release platforms remain gated by DD-14. The repository pins the exact Unity 6.5 patch in `ProjectSettings/ProjectVersion.txt`.
-2. **The deterministic engine is presentation-independent.** `Bloomdrawn.Engine` is a dedicated Assembly Definition with No Engine References so it cannot depend on `UnityEngine`, `UnityEditor`, scenes, frame time, or presentation assets.
-3. **URP 2D and independent Unity actors own battlefield rendering.** Party members and targetable enemies are individual actor roots with their own transforms, target bounds, UI/VFX anchors, and presentation state.
-4. **uGUI + TextMesh Pro is the initial runtime UI system.** It owns combat HUD, the card hand, menus, targeting overlays, and other player UI. UI Toolkit is reserved initially for Editor/developer tooling so runtime card drag/focus/raycast behaviour is not split across UI systems without an explicit later decision.
-5. **The Input System owns pointer/keyboard/controller input.** Input gestures remain presentation state until a complete engine command is accepted.
-6. **Card feel/stability is an M1 responsibility.** The first vertical slice includes a bottom-centred fanned hand, hover/select, upward drag, responsive Play Area threshold, cancellation/return, and explicit target-selection state.
-7. **Sequential presentation begins in M1.** Engine events map to presentation tokens and independent actor/UI animations from the first playable combat; M9/M10 extend, harden, and polish the same presentation path.
-8. **Local persistence uses versioned file-backed repositories.** Saves live under Unity's persistent data location with validation, atomic replacement, and previous-valid fallback behaviour.
-9. **Unity Test Framework is the primary in-project harness.** Edit Mode covers pure engine/content; Play Mode covers scene/UI/input; project PowerShell wrappers provide stable validation entrypoints.
-10. **Unity CLI + `com.unity.pipeline` is an agent-development surface.** It is experimental, isolated from gameplay architecture, and wrapped by project-specific commands where repeated operations are useful. Installed `--help` output is authoritative for exact CLI syntax.
-11. **Schema-driven content is mandatory.** Hand-authored YAML is canonical by default; editor/build tooling validates and compiles it to generated runtime data. Machine-generated artifacts use JSON by default.
-12. **Production gameplay hardcoding is forbidden.** Unity scenes, prefabs, MonoBehaviours, Animator state names, and GameObject names cannot become hidden gameplay databases.
-13. **Generated art is always permitted.** AI-generated art may be prototype, production, or release-quality; generation method is provenance, not placeholder status. Human review and technical/readability gates still apply.
+This is Bloomdrawn's sequencing, boundary, and governance contract. It answers four questions:
 
-## 1. Authority, Change Control, and Design Gates
+1. **In what order do we build**, and why that order?
+2. **What may not change** without an explicit decision?
+3. **How do we know a step is done?**
+4. **How do we grow the game later** without rewriting the engine?
 
-### 1.1 Source-of-Truth Hierarchy
+It is deliberately not a design document. Gameplay rules, content definitions, economy, UX commitments, and the ethical gacha contract live in `docs/DESIGN.md`. This plan never invents a rule. When implementation exposes a design flaw, the fix is a revision to `docs/DESIGN.md` first, then this plan, then code — never the reverse.
+
+This plan is also not a task list. Task plans live under `plans/tasks/` and are written against this plan as needed. This document defines the *shape* a task must take, the *gates* it must pass, and the *order* in which milestones may be entered. It intentionally specifies less than its predecessor: it fixes invariants and acceptance criteria, and leaves implementation mechanism to the Builder, because over-specifying mechanism is how this project previously stalled.
+
+#### 0.2 Source-of-truth hierarchy
+
+In descending order of authority:
 
 1. `docs/DESIGN.md`
-2. `plans/design-decisions.md`, for approved decision records mirrored into `docs/DESIGN.md`
-3. `plans/implementation_plan.md`
-4. Active task plans under `plans/tasks/` or an approved equivalent
+2. `plans/design-decisions.md` — approved decision records that explicitly amend `docs/DESIGN.md`
+3. This plan (`plans/implementation_plan.md`)
+4. Active task plans under `plans/tasks/`
 5. Automated tests that correctly encode approved rules
 6. Engine implementation
 7. Application/session adapters and persistence
 8. Unity scenes, UI, animation, VFX, and presentation
 
-A lower layer may not redefine a higher layer. If implementation exposes a design flaw, stop the affected task, update `docs/DESIGN.md`, revise this plan or the active task plan, update tests, and only then change code.
+A lower layer may reveal ambiguity in a higher layer; it may never silently override it. If two layers conflict, work on the affected task stops, the conflict is raised, and the higher layer is corrected before anything below it changes.
 
-### 1.2 Required Design Gates
+Two governance files sit beside this hierarchy without being in it:
 
-| Gate | Required before | Decision required |
-|---|---|---|
-| **DD-01 - Combat terminal timing** | Resolved for M1 combat finalization | Approved Atomic Stop: terminal state is checked after each atomic terminal-capable effect, and remaining non-terminal sub-effects are skipped once victory or defeat is reached. |
-| **DD-02 - Domain tuning lock** | Resolved for M2A production schema/content lock | Approved launch Domain resource values, UI strings, reset/persistence rules, and edge-case invariants from `docs/DESIGN.md` section 3; values marked tuning remain adjustable. |
-| **DD-03 - Launch character tuning lock** | Resolved for M2A and M5A content lock | Approved all eight section 4 launch kits as implementation anchors; M2 implements the starter four first and M5 implements the remaining four. |
-| **DD-04 - Save checkpoints** | Resolved for M4 resume UX | Approved Option 2: expose map/node boundaries and stable fully resolved combat-action boundaries; exclude mid-resolution, mid-animation, and interaction-state recovery. |
-| **DD-05 - Gacha rates and pity** | M8A decision lock | Approve exact rates, soft-pity table/formula, hard pity, featured guarantee, and rounding. |
-| **DD-06 - First-acquisition protection** | M8A decision lock | Approve early duplicate-frustration protection after the starter party. |
-| **DD-07 - Duplicate ladder** | M8A decision lock | Approve exact C1-C5 duplicate benefits and any post-cap compensation. |
-| **DD-08 - Content intensity settings** | M10/M11 content lock | Approve warning taxonomy and player-facing intensity/accessibility settings. |
-| **DD-09 - Starter onboarding** | Resolved for M5H onboarding | Approved Option 2: a short sequence with one focused teaching beat per launch Domain, ending in a complete starter-party combat. |
-| **DD-10 - Reward economy** | Production M6/M8/M8T/M8X reward tables | Approve direct pulls, EXP items, Sigils, persistent currency, Obols, first-clear, and repeat reward quantities. M3/M4 may prove transactions with isolated non-production tables. |
-| **DD-11 - Profile roster cap table** | M8A decision lock | Approve profile-level bands and maximum character level caps. |
-| **DD-12 - Trial difficulty/reward table** | M8T-A decision/schema lock | Approve Trial boss scaling, reward quantities, first-clear rewards, and repeat rewards. |
-| **DD-13 - Content format policy** | Resolved for production content authoring | YAML is canonical for hand-authored content by default; JSON is canonical for generated/machine-written content by default; Unity editor/build tooling validates canonical source and emits generated runtime data; each family has one canonical source format. |
-| **DD-14 - Release platform lock** | Release packaging | Windows is the primary development/validation target. Decide which additional Unity platforms, if any, are part of the first public release. |
-| **DD-15 - Rarity and banner result model** | M8A decision lock/M8X banner expansion | Approve SSR/SR/R rates, result-family splits, 10-pull guarantee rules, and equipment banner pool structures. |
-| **DD-16 - Stats and equipment scaling** | M8X equipment snapshot implementation | Approve stat keys, scaler formulas, stacking order, caps, and snapshot calculation rules. |
-| **DD-17 - Weapon progression** | M8X weapon implementation | Approve weapon level caps, EXP/ascension costs, signature restrictions, and +1 through +5 duplicate bonuses. |
-| **DD-18 - Gear set and stat system** | M8X gear implementation | Approve six slots, main stat pools, substat pools, set bonuses, reroll rules, and desynthesis yields. |
-| **DD-19 - Profile Shop and conversion economy** | M8X Profile Shop implementation | Approve stock, targeted dupe policy, prices, refresh rules, conversion currency rules, and profile-money sinks. |
-| **DD-20 - Economy and item naming** | M8X content/UI text lock | Approve final names for direct pulls, profile money, conversion currency, reroll currency, weapon EXP tiers, weapon ascension materials, and gear terminology. |
-| **DD-21 - Bloom identity and refraction premise** | Release-quality enemy, Symptom, Labyrinth art, major event, and character-writing content locks | Approve the Bloom premise, Domain refraction rules, lifecycle language, and art/writing constraints. |
-| **DD-22 - Advanced character mechanics and selfish costs** | Resolved as a post-launch future gate | Reserve generic extension points for self-debt, party stances/aspects, damage-to-status conversion, per-hit reactions, and signature weapon hooks. Actual mechanics require future tasks. |
-| **DD-23 - Advanced card memory, copy, and hidden-zone selection** | Resolved as a post-launch future gate | Reserve copy eligibility, copy lifetime, hidden-zone reveal/selection, copy-lineage, and copy-triggered weapon hook guardrails. Actual mechanics require future tasks. |
-| **DD-24 - Collapsing Node and safe-path topology** | M3B map state, M3D validation, M3E node resolution, M3G map UI, and M4 run serialization | Approve node-scoped Collapsing Nodes, collapse-on-departure timing, safe-path loop behavior, and visibility/accessibility requirements. |
-| **DD-25 - Node-primary Labyrinth topology** | M3B/M3C/M3D/M3E/M3G map work, M4 run serialization, and M7 map breadth | Approve nodes as places/consequence owners and edges as connectivity/topology only. |
-| **DD-26 - Combat enemy placement and target readability** | M6 enemy content metadata, M9 final combat layout and target interaction, and M10 enemy asset validation | Approve right/right-center enemy staging, formation readability, target bounds, anchors, and focus mapping without changing authoritative enemy slot order. |
-| **DD-27 - Unity runtime/presentation architecture** | Resolved for M0/M1 | Approved: Unity 6.5 Supported line (`6000.5.x`), C#, pure no-Unity engine assembly, URP 2D, uGUI runtime UI, Input System, independent actor views, and experimental CLI/Pipeline only as development automation. |
-| **DD-28 - Card hand and play-threshold interaction** | Resolved for M1H/M9 polish | Approved: bottom-centred fan, hover rise, upward drag, responsive Play Area threshold, disarm on return below threshold, release-to-cast for target-complete cards, target-selection state for explicit targets, and click/keyboard cancellation parity. |
-| **DD-29 - Generated art policy** | Resolved for all art milestones | Approved: AI-generated art is allowed at every stage and may be release-quality after human review; generation method is provenance, not placeholder status. |
-| **DD-31 - Windows performance acceptance baseline** | M10E performance validation | Approve the Windows hardware class, resolution, frame-time target, memory budget, representative scenarios, and acceptance tolerances. |
+- `.agents/skills/**` teaches agents how to operate the Unity toolchain. It must never restate gameplay rules or milestone acceptance criteria. Those live here and in `docs/DESIGN.md`.
+- `AGENTS.md` and the Opencode agent definitions define role permissions. They govern *who may change what*, not what the game is.
 
-### 1.3 Change Classification
+#### 0.3 Planning as argument
 
-- **Editorial:** wording, typo, heading, or link correction. Requires a worklog note only.
-- **Plan-level:** task order, package split, validation command, or milestone criteria. Requires plan revision.
-- **Design-level:** rules, timing, formulas, rewards, ownership, economy, UX commitments, content warnings, or progression. Requires `docs/DESIGN.md` revision first.
-- **Save-affecting:** authoritative state shape, content IDs, RNG state, profile inventory, or persisted schema. Requires migration/invalidation assessment.
+Every sequencing choice in this plan carries a reason. If a milestone order, a gate, or a fixture policy seems arbitrary, that is a defect in this document, not a feature. The reason for each structural decision is stated where the decision is made, so a future planner can tell whether the reason still holds before changing the decision.
+
+The three load-bearing arguments of this plan:
+
+- **Visibility before breadth.** The player-facing game must become playable and feelable as early as possible, because a game that cannot be played cannot be playtested, and a game that cannot be playtested cannot be corrected. Milestones are ordered to reach the first winnable run quickly, then broaden.
+- **Content exists before it is called.** Nothing may reference a content definition by stable ID until that definition's schema is locked and the definition itself exists in a validated registry. This is enforced per content family in §3.
+- **Growth is routine, not exceptional.** Adding characters, cards, enemies, weapons, and gear after launch is a planned, lightly-gated activity (§5), not a heroic engineering event. The architecture is built to make expansion a data change.
 
 ---
 
-## 2. Architectural Contracts
+### 1. Change Classification and Change Control
 
-### 2.1 Deterministic Engine Boundary
+Every change to the project is one of four classes. The class determines who must approve it and which documents must move with it.
 
-```text
-Unity input gesture
-  -> UI interaction state (hover / drag / armed / targeting)
-  -> PlayerCommand
-  -> pure engine validation/transition
-  -> accepted authoritative state + gameplay events OR rejected diagnostic
-  -> application/session adapter
-  -> presentation-token queue
-  -> Unity actor/UI/VFX/audio rendering
-  -> persistence checkpoint
+#### 1.1 Change classes
+
+| Class | Definition | Approval | Documents touched |
+|---|---|---|---|
+| **Editorial** | Wording, typo, heading, or link correction with no semantic effect | Worklog note only | None beyond the edited file |
+| **Plan-level** | Task order, task split, validation command, milestone entry/exit criteria, fixture policy mechanics | Planner proposes, owner approves | This plan or the active task plan |
+| **Design-level** | Rules, timing, formulas, rewards, ownership, economy, UX commitments, content warnings, progression | Owner approves via decision record | `docs/DESIGN.md` first, then decision record, then this plan |
+| **Save-affecting** | Authoritative state shape, content IDs, RNG state, profile inventory, persisted schema | Planner assesses, owner approves | This plan + migration/invalidation assessment |
+
+A change may belong to more than one class. When it does, the strictest class governs.
+
+#### 1.2 The change workflow
+
+1. The change is classified.
+2. If design-level, a decision record is opened in `plans/design-decisions.md` before dependent work begins, and `docs/DESIGN.md` is revised once approved.
+3. This plan or the affected task plan is revised to reflect the change.
+4. Tests that encode the old behaviour are updated in the same change, never after.
+5. Implementation changes only after the documents above it are consistent.
+6. A worklog entry records the change, its class, and its approval.
+
+#### 1.3 What may not change by accident
+
+The following are invariant unless a design-level change explicitly revises them:
+
+- The deterministic engine boundary (§2.2).
+- The no-hardcoding rule (§2.4).
+- The fixture/production separation (§4).
+- The ethical gacha contract (no monetisation, direct pulls, visible odds).
+- The four-Domain structure (the Bloom is not a fifth Domain).
+- The node-primary, edge-supported Labyrinth topology (DD-25).
+
+These are the project's load-bearing walls. Everything else is negotiable through the correct class of change.
+
+---
+
+### 2. Core Implementation Commitments
+
+These commitments are inherited from the approved architecture and re-stated here as the contract every milestone builds on. They are rewritten, not ported: where the prior plan asserted these as a list, this plan states *why* each exists so that a future agent cannot satisfy the letter while breaking the spirit.
+
+#### 2.1 The determinism contract
+
+Bloomdrawn is a deterministic game. Given the same engine version, content version, initial state, named RNG substream states, and ordered commands, the engine produces the same state transitions and ordered events.
+
+This is not a nice-to-have. It is what makes the following possible:
+
+- golden replay tests that catch regressions without a running scene;
+- save/reload that restores an exact run;
+- an auditable gacha, where every pull can be reproduced;
+- bug reproduction that does not depend on animation timing.
+
+Determinism is therefore protected at every layer, not only in the engine. Presentation may be non-deterministic for cosmetics (idle sway, particle variation), but any cosmetic randomness uses a separate, non-authoritative stream and never perturbs shuffle, map, targeting, reward, shop, gacha, or equipment streams.
+
+#### 2.2 Engine purity
+
+`Bloomdrawn.Engine` is a dedicated Assembly Definition with **No Engine References** enabled. It cannot reference `UnityEngine`, `UnityEditor`, scenes, `MonoBehaviour`, `ScriptableObject`, frame time, `UnityEngine.Random`, input, storage APIs, or presentation assets.
+
+The engine is pure C# operating on value states. It receives a command and a state, and returns either an accepted next-state-plus-events or a rejection. It does not know it is in Unity. This is what allows it to be tested headlessly, replayed, and kept free of the scene-coupling that made earlier web-stack ports fragile.
+
+The engine may call into pure content contracts and deterministic utilities. It may not call into anything that reads the running world.
+
+#### 2.3 Schema-driven content
+
+Authored gameplay content is data-first and schema-validated. Characters, cards, generated cards, enemies, encounters, statuses, keepsakes, Symptoms, Curses, Trials, rewards, banners, rarity tables, weapons, gear, Profile Shop offers, map motifs, growth tables, and tutorials live in version-controlled files.
+
+Format policy (DD-13):
+
+- Hand-authored production content uses **YAML** by default.
+- Generated or machine-written artifacts use **JSON** by default.
+- Each content family has exactly one canonical source format at a time.
+
+YAML is an authoring format, not a runtime dependency. Editor/build tooling parses and validates canonical sources and emits a deterministic generated registry. The runtime consumes the validated registry, never raw YAML. A single maintained .NET YAML parser lives outside `Bloomdrawn.Engine` (DD-30 governs the save-facing JSON serializer; the YAML parser is a separate, explicitly pinned dependency).
+
+#### 2.4 No production hardcoding
+
+Production gameplay content must not appear in engine or UI code. Specifically, reviews reject:
+
+- `MonoBehaviour`, presenter, scene, prefab, or UI conditionals keyed to a specific production character/card/enemy ID;
+- engine switch statements that special-case a named character rather than dispatching over a generic operation kind;
+- hand-written encounter construction outside validated content;
+- hardcoded gacha pools, Trial reward tables, Profile Shop stock, weapon or gear definitions, or progression tables;
+- GameObject names, prefab names, scene paths, or Animator state names treated as gameplay IDs.
+
+Switches over *operation kinds, target kinds, status classes, node types, and presentation-token kinds* are legal, because they dispatch over reusable systems, not over specific content. The test is: does adding a new piece of content require touching this code? If yes, the code is wrong.
+
+#### 2.5 Fixture discipline
+
+Non-production fixtures prove systems before production content exists. They are schema-validated data in an explicit non-production namespace, loaded only from isolated test/development registries. They are never code, never hardcoded values, and never leak into production state. The full policy is §4.
+
+#### 2.6 Generated art is always permitted
+
+AI-generated art may be prototype, production, or release-quality (DD-29). Generation method is provenance, not placeholder status. Generated art is judged by the same quality, readability, continuity, and technical-import criteria as hand-authored art, and passes through the same human review before release lock. No gate rejects an asset solely because it was generated.
+
+#### 2.7 Unity baseline
+
+- Unity **6.5 (`6000.5.x`)**, exact patch pinned in `ProjectSettings/ProjectVersion.txt`. Windows is the primary development and validation target; release platforms are gated by DD-14.
+- **URP 2D** for rendering. **uGUI + TextMesh Pro** for runtime UI. **Unity Input System** for input. UI Toolkit is reserved for Editor tooling unless a later decision says otherwise.
+- **Independent actor views** for every party member and targetable enemy; no composite party/enemy render in the gameplay actor layer.
+- **Unity CLI + `com.unity.pipeline`** are development-only automation. The project must build and test without them. Installed `--help` output is authoritative for CLI syntax, because the CLI is experimental.
+
+**Agent Editor access:** any Unity Editor an agent controls through Pipeline, live evaluation, Play Mode interaction, or runtime inspection must be launched with the `-automated` flag. An Editor without `-automated` is unreachable to agents. The launcher scripts (`Tools/get-unity-editor-state.ps1`, `Tools/open-automated-editor.ps1`) are the safe path; agents never kill or restart a user-owned Editor without explicit authorization.
+
+#### 2.8 Permanent presentation infrastructure from M1
+
+The card hand, drag/Play-Area interaction, independent actor model, battlefield composition, and event-to-presentation sequence are built as **permanent** infrastructure in M1, not throwaway scaffolding. M9 and M10 polish and close these systems; they do not replace them. This commitment exists because card feel is the game's primary tactile surface and cannot be validated late.
+
+The consequence: M1's exit is not "the fixture combat runs." It is "the fixture combat runs through the real presentation path, and that path feels and behaves correctly under repeated human interaction." Feel is an M1 acceptance criterion, not an M9 one.
+
+---
+
+### 3. Content Readiness Chain
+
+This section encodes the rule that **content must exist before it is called**. It applies to every content family and every milestone.
+
+#### 3.1 The chain
+
+A content family advances through six stages, strictly in order. Nothing downstream of a stage may act until that stage is complete.
+
+1. **Schema contract locked.** The C# DTO/contracts, validators, and any required design-decision gates for the family are approved. No content of this family may exist in a registry before this.
+2. **Content authored.** Definitions are written in the family's canonical format (DD-13) into a validated registry — either the isolated fixture namespace or the production namespace.
+3. **Registry validation passes.** IDs, cross-references, formulas, targeting, costs, and logical presentation-asset references all validate. The registry fails fast on invalid content.
+4. **Engine/system consumers may reference by stable ID.** Only now may engine, application, or presentation code look up definitions of this family.
+5. **Presentation catalog binds logical asset IDs.** Logical presentation IDs resolve through the presentation asset catalogue to Unity assets. Generic fallbacks are acceptable until real art is reviewed; deterministic content stores only logical IDs, never Unity objects.
+6. **Persistence includes the content.** A family enters saves only once any save-affecting migration for it exists.
+
+#### 3.2 The no-forward-reference rule
+
+No system may reference a content definition that has not reached stage 2 in a registry that system is permitted to read. In particular:
+
+- Production registries never reference fixture definitions.
+- A milestone may not author content whose schema lock belongs to a later milestone.
+- A system may not branch on a content ID that does not yet exist "because it will later."
+
+If a task appears to need a forward reference, that is a signal the sequencing is wrong, and the plan is revised rather than the rule.
+
+#### 3.3 Worked example: the boss split
+
+The first winnable run needs a boss, but the production boss is an M6 deliverable. The chain resolves this cleanly:
+
+- **M3/M4** use a **fixture boss** — schema-validated, non-production, loaded from the isolated M3/M4 development registry. It exists (stage 2) before M4 calls it to close the run.
+- **M6** authors the **production phased boss** after the enemy/encounter schema lock (stage 1), then replaces the fixture boss. The cutover is an explicit retirement step (§4.5).
+
+At both stages, content exists before it is called, and no production content is authored prematurely to satisfy a test.
+
+#### 3.4 Entry criteria encode the chain
+
+Every milestone's entry criteria (§13 onward) name the content families it consumes and assert that each has reached the required stage. A milestone may not begin until its input families are ready. This is the mechanism that keeps the plan in a sensible order without micromanaging tasks.
+
+---
+
+### 4. Fixture vs. Production Content Policy
+
+This section defines the boundary between non-production fixtures and production content. It exists to satisfy two constraints at once: tests and early loops need content to run, but production content must never be authored prematurely or hardcoded.
+
+#### 4.1 What a fixture is
+
+A fixture is schema-validated content in an explicit non-production namespace (for example `fixture.*`), loaded only from isolated test/development registries. Fixtures exist to:
+
+- prove engine and presentation systems before production content exists;
+- close early loops (such as the fixture boss that ends the first winnable run);
+- provide deterministic test data for golden and property tests.
+
+Fixtures are **data**. They are YAML/JSON definitions passing the same validators as production content. They are never code, never hardcoded constants, and never inline literals in engine or UI.
+
+#### 4.2 What a fixture is not
+
+- A fixture is not an excuse to hardcode. Engine and UI code may not branch on fixture IDs any more than production IDs.
+- A fixture is not premature production content. We never author production definitions early just to make a test pass; the test uses a fixture instead.
+- A fixture is not invisible. Fixture definitions carry an explicit non-production marker and live only in isolated sources.
+
+#### 4.3 Where fixtures may and may not appear
+
+| May appear in | Must never appear in |
+|---|---|
+| Isolated test/development registries | Production runtime registries |
+| Edit/Play Mode tests | Production profiles or saves |
+| Development saves (explicitly marked non-release) | Banners, Shops, inventories, equipment snapshots |
+| Golden/property test fixtures | Presentation production catalogues |
+| — | Any release build |
+
+Production profiles, saves, banners, Shops, inventories, equipment snapshots, and release registries must reject fixture IDs. A validator and release scan enforce this.
+
+#### 4.4 Production content appears only after its gates
+
+Production content of a family is authored only after that family's schema lock and any design-decision gates are approved (the Content Readiness Chain, §3). For example:
+
+- Production characters enter at M2, after the M2A schema lock (DD-02, DD-03, DD-13 approved).
+- Production gacha content enters at M8, after DD-05/06/07/10/11/15.
+- Production equipment enters at M8X, after DD-15 through DD-20.
+
+Before those gates, the relevant systems run on fixtures.
+
+#### 4.5 Cutover and retirement
+
+Every milestone that replaces fixtures with production content defines an explicit cutover step:
+
+1. Production content is authored and validated.
+2. Runtime content sources switch from fixture to production.
+3. Fixture definitions are removed from app/runtime bundles, developer-facing registries, and production saves.
+4. Minimal fixture equivalents may remain under isolated test sources where they provide production-independent regression coverage.
+5. Development saves referencing retired fixture IDs are migrated or invalidated, never silently loaded as production state.
+6. A release scan proves normal application startup cannot load the retired fixture IDs.
+
+The M1→M2 character cutover and the M3→M6 run-content cutover are the two required instances. Later cutovers follow the same shape.
+
+---
+
+### 5. Content Expansion Tiers and Extension Policy
+
+This section governs how the game grows after launch. It replaces the prior plan's tendency to route every non-content change through a heavyweight gate, which would have made every future character feel like a project crisis. Engine growth for new content is a **planned, audited routine**, not a hard blocker and not a full design decision.
+
+#### 5.1 The three tiers
+
+| Tier | Trigger | Engine change? | Governance |
+|---|---|---|---|
+| **1 — Content-only** | New character, card, enemy, Trial, weapon, gear, motif, or shop offer built from **existing** typed operations | None | Schema validation + normal task plan. No special gate. This is the state modularity should maximise. |
+| **2 — Engine-extending** | New **generic** operation, status class, trigger timing, targeting kind, or stat key | Yes, generic | **Extension Brief** + Builder + Auditor. Not a full design decision, not a blocker for planning the content. |
+| **3 — Architectural** | Changes authoritative state *shape*, information boundaries, or cross-system contracts | Yes, architectural | Full **design decision** + dedicated implementation task. This is the DD-22/DD-23 class and remains a hard gate. |
+
+#### 5.2 The boundary between Tier 2 and Tier 3
+
+The test is precise:
+
+- **Tier 2** introduces a *new atomic operation on existing authoritative state*. A new damage operation, a new status, a new passive trigger timing, a new stat key — these operate on state whose shape is already defined.
+- **Tier 3** *changes the shape of authoritative state, what information is hidden, or how systems contract with each other*. Card copy with lineage, hidden-Draw selection, run-persistent self-debt, Domain engine replacement, and per-hit reaction systems are Tier 3 because they alter state shape, hidden information, or cross-system contracts, and they pressure saves, replays, and previews.
+
+When a proposed mechanic is ambiguous, the Planner classifies it and records the reasoning in the Extension Brief or decision record. The default in doubt is the higher tier, because the cost of over-gating a Tier 2 change is small and the cost of under-gating a Tier 3 change is large.
+
+#### 5.3 Tier 2: the Extension Brief
+
+A Tier 2 change is authorized by a lightweight **Extension Brief** — a brief, not a full task plan. The Planner drafts it, the Builder implements it, the Auditor certifies it. It covers exactly the things that protect a deterministic engine:
+
+```
+# Extension Brief <ID> — <Operation Name>
+## Operation identity        — kind, payload schema, operation family
+## Generality statement      — which content uses it; explicit confirmation it is
+                               not a character-ID branch
+## RNG stream assignment     — which named substream it touches, or none
+## Timing / ordering window  — where it sits in stable resolution order
+## Preview parity            — confirmation it flows through the same evaluator
+                               as resolution
+## Save & content-version    — does it change combat-state shape (save-affecting)
+   impact                      or only add content (content-version only)
+## Deterministic test plan   — golden/property coverage
+## Replay compatibility      — existing golden replays unaffected, or intentionally
+                               migrated
 ```
 
-`Bloomdrawn.Engine` must compile in an Assembly Definition with **No Engine References** enabled. It may not import/reference `UnityEngine`, `UnityEditor`, `MonoBehaviour`, `ScriptableObject`, scene APIs, Input System, UI, animation, timers/frame time, storage APIs, Pipeline APIs, or presentation assets. Engine modules may reference pure content contracts/registries, deterministic utilities, and pure helpers.
+The brief lives under `plans/tasks/` (or an approved `plans/extensions/` directory). It is approved before the operation lands in the engine. The character content that motivated it may be *planned* before the brief is approved, but may not be *authored into a registry* until the operation exists.
 
-No authoritative rule may read `Time`, `UnityEngine.Random`, GameObject names, scene hierarchy, Animator state, current frame, pointer position, or transient Unity instance IDs.
+#### 5.4 Tier 3: the standing gates
 
-### 2.2 Command Result Contract
+DD-22 (advanced character mechanics and selfish costs) and DD-23 (advanced card memory, copy, and hidden-zone selection) are the standing Tier 3 gates. They are approved as *extension policies* — they reserve generic extension points and state the conditions under which the mechanic may later be implemented — but the actual mechanics require a dedicated post-launch implementation task with schema, save, UI, replay, and test review.
 
-All engine command entrypoints return an explicit accepted/rejected result.
+Tier 3 work is never embedded in a launch milestone. Launch implementation preserves the extension points (source-kind damage metadata, explicit status persistence scope, generic Domain operations, copy-lineage guardrails) without implementing the mechanics.
 
-```csharp
-public readonly struct CommandResult<TState, TEvent>
-{
-    public bool Accepted { get; }
-    public TState State { get; }
-    public IReadOnlyList<TEvent> Events { get; }
-    public CommandRejection Rejection { get; }
-}
-```
+#### 5.5 How this maps to the agent workflow
 
-Accepted results carry the next authoritative state and ordered events. Rejected results carry the unchanged state and a rejection, with an empty event list. Dedicated accepted/rejected types may replace this illustrative shape if implementation ergonomics justify it, but the semantic contract is fixed.
+- **Planner** classifies the change, drafts the Extension Brief (Tier 2) or opens the decision record (Tier 3).
+- **Builder** implements the approved operation and its tests.
+- **Auditor** certifies determinism, generality, and save integrity.
+- **Acceptance Engineer** is invoked only if the change is also a milestone gate or high-risk cross-layer integration; a routine Tier 2 operation does not require protected acceptance.
+- **Git Steward** commits once the Auditor returns `PASS`.
 
-Rejected commands:
+This keeps engine growth bounded and auditable without recreating the bureaucratic deadlock that previously froze a simple interaction task.
 
-- mutate no state;
-- consume no RNG;
-- emit no gameplay events;
-- may emit diagnostics outside authoritative event history.
+---
 
-Accepted commands resolve completely after validation. General rollback is not part of normal gameplay resolution; content operations must be total once accepted.
+### 6. Modularity and Content Authoring Contract
 
-### 2.3 Public Command Families
+This section states the modularity invariant and the authoring workflow that makes expansion cheap. It is a first-class contract, audited at M11, not a footnote.
 
-Initial command families are:
+#### 6.1 The modularity invariant
 
-- **Combat:** `PlayCard`, `CastUltimate`, `EndTurn`, `AbandonRun`.
-- **Map/Run:** `MoveToNode`, `ResolveNodeChoice`, `PurchaseShopItem`, `ChooseReward`, `FinalizeRun`.
-- **Profile:** `LevelCharacter`, `AscendCharacter`, `SpendDirectPull`, `StartTrial`, `CompleteTrial`, `SaveParty`, `EquipWeapon`, `LevelWeapon`, `AscendWeapon`, `EquipGear`, `EnhanceGearMainStat`, `RerollGearSubstats`, `DesynthesizeInventoryItem`, `PurchaseProfileShopOffer`.
-- **System:** `LoadProfile`, `SaveProfile`, `LoadRunSave`, `SaveRunSave`, `ExportReplay`.
+**Adding content is a data change.** Adding a new character, card, enemy, encounter, Trial, weapon, gear set, motif, shop offer, or reward table should require **no** engine or UI edits, except where the content genuinely needs a new generic operation (a Tier 2 Extension Brief, §5.3).
 
-Internal phase advancement, enemy iteration, status timing windows, automatic Tentacle volleys, reward generation, and pity updates are private engine transitions. UI code cannot submit those as public commands.
+Concretely:
 
-### 2.4 Preview Contract
+- Adding a new character must not require editing combat engine code.
+- Adding a new card must not require editing Unity UI/presentation code, except for a genuinely new generic renderer/operation.
+- Adding a new enemy must not require editing the combat state machine unless it introduces a new generic operation.
+- Adding a new Trial must mean adding a Trial definition and reward table, not a bespoke scene path.
+- Adding a new weapon, gear set, stat table, or Profile Shop offer must primarily be a content-data change.
 
-Preview functions reuse the same validation, formula, targeting, modifier, and conversion logic as committed resolution.
+New effect behaviour is added as **typed, reusable engine operations**, then used by content. Content composes operations; it does not inject code.
 
-Requirements:
+#### 6.2 Generic typed operations
 
-- previews do not mutate authoritative state;
-- previews do not consume live RNG;
-- random outcomes return labelled ranges or uncertainty;
-- command preview and command resolution share calculation helpers;
-- UI may render previews but may not reproduce gameplay calculations independently.
+Card, status, weapon, and keepsake effects use a typed, serializable operation tree, not arbitrary callbacks or unparsed formula strings. Requirements:
 
-M2H establishes the first minimal authoritative, side-effect-free evaluator needed for starter target/resource previews. M9C expands the same evaluator's coverage and closes production preview UX; M1 does not introduce a general preview system.
+- exhaustive operation kinds and validated payloads;
+- schema validation for static content;
+- no runtime code evaluation for authored gameplay effects;
+- formula preview and resolution share the same evaluator;
+- explicit conditional and iteration bounds;
+- escape hatches require named generic engine operations and tests, not inline `MonoBehaviour` callbacks or character-ID branches.
 
-### 2.4.1 Future Advanced Character Guardrails
+Unity CLI `eval` is a developer inspection tool only and is never an authored gameplay-effect mechanism.
 
-Future character kits may propose selfish costs, Domain engine transformations, party-level stances/aspects, per-hit reaction loops, or party-scoped Domain-resource reaction/amplifier systems only through the approved DD-22 future gate and a dedicated post-launch implementation task.
+#### 6.3 The authoring workflow
 
-The launch implementation should avoid closing these doors by:
+The workflow is designed so a human can add content with fast, clear feedback:
 
-- representing damage and HP-loss outcomes with source metadata: command ID, owner, source kind, Shield absorbed, and HP damage dealt;
-- keeping status target scope and persistence scope explicit, even when launch statuses are combat-scoped;
-- expressing Abyss automatic volleys and immediate volleys as typed Domain operations rather than production-character branches;
-- supporting reaction guards such as per-command caps, source-kind exclusions, and recursion prevention when those operations are later approved;
-- preserving generic Domain-resource events for successful generation and consumption;
-- keeping resource activity ledgers explicit when future tasks add first-builder, first-consumer, first-Ultimate, first-Transcended-Ultimate, or per-combat consumed-resource checks;
-- supporting operation-tag amplification for declared categories such as damage, Shield, healing, and fixed offensive status stacks;
-- leaving run-persistent self-debt, delayed debt conversion, Tide/Aspect-style state, Womb-Sea-style Abyss replacement, Mother's Pearl-style resource amplifiers, and advanced signature-weapon stance/resource/Ultimate triggers out of launch production content.
+1. Author the definition in the family's canonical YAML (or JSON if machine-written).
+2. Run content validation. Errors point at the **source path and definition ID**, not at a stack trace.
+3. The import tooling compiles validated content into the generated registry with a content version/hash.
+4. The registry exposes typed lookup, family indexes, cross-reference reports, and dependency reports.
+5. Presentation asset references are validated against the presentation catalogue.
 
-### 2.4.2 Future Card Memory and Copy Guardrails
+Every definition has a stable ID, content version, display-name key, and family discriminator. Cross-references use stable IDs. Balance values live in content data unless they are universal rules.
 
-Future character kits may propose card-memory structures, owner-preserving temporary copies, hidden-zone reveal/selection, and copy-triggered weapon hooks only through the approved DD-23 future gate and a dedicated post-launch implementation task.
+#### 6.4 Stable IDs and versioning
 
-The launch implementation should avoid closing these doors by:
-
-- keeping card instance ownership, pile, generated/combat-scoped flags, base cost, current cost modifiers, and spent once-per-instance flags explicit;
-- treating copied cards as combat-scoped by default unless a future approved rule defines run-scoped persistence and migrations;
-- preserving the invariant that Transcend resolves at most once per owner per combat;
-- keeping Draw order hidden from previews and rejected commands;
-- leaving Pattern, Recollection, Reprise, Wing, Fleeting, Foregone Hour, copy-lineage, and hidden Draw selection systems out of launch production content.
-- treating visible hand-only copies as DD-23 runtime copy effects even when they do not use hidden-zone selection.
-
-Default future copy safety:
-
-- allowed sources are Hand, Draw, Discard, and approved stored snapshots;
-- blocked by default are Transcend, Graveyard, Exhaust, generated, combat-scoped, Curse, Symptom, X-cost, existing copy cards, consumed once-per-instance cards, and `copyProhibited`;
-- combat-scoped copies must be removed from all piles at combat end;
-- safe hand-copy effects may further require a starting-deck source in Hand, source owner and upgrade ID preservation, printed-base-cost discounts, no temporary modifier or spent-flag inheritance, Exhaust, `copyProhibited`, and deterministic overflow to Draw.
-
-### 2.5 Content Registry Contract
-
-The content registry is built before gameplay. It validates and indexes content by stable ID.
-
-Registry responsibilities:
-
-- load JSON/YAML content files;
-- validate each content family against schemas;
-- build typed lookup indexes;
-- validate cross-references;
-- compute content version/hash;
-- expose dependency and validation diagnostics;
-- fail fast on invalid production content.
-
-Adding a production character, card, enemy, encounter, Trial, reward table, banner pool, weapon, gear set, Profile Shop offer, level cap table, or map motif should primarily be a content-data change.
-
-### 2.6 Presentation Contract
-
-- The Unity battlefield uses independent actor roots for every party member and independently targetable enemy. A production party/enemy formation may not be flattened into one composite render.
-- World/stage presentation uses URP 2D, SpriteRenderer/sorting, actor anchors, and approved animation/VFX components; gameplay-critical target identity remains separate from decorative background art.
-- Runtime UI uses uGUI/TextMesh Pro initially. Combat cards are production-shaped UI prefabs bound to authoritative card instances through stable IDs.
-- The hand is bottom-centred and uses a deterministic fan layout derived from current hand order. Presentation may never persist ad-hoc dragged transforms as the next resting layout.
-- Dragging uses a dedicated interaction/drag layer and a responsive Play Area region. Coordinate conversion/reparenting must preserve screen position and must not make cards jump or leave usable bounds.
-- Crossing the Play Area arms a card; returning below it disarms. Releasing armed target-complete cards submits the command; explicit-target cards enter target selection and submit only after a legal target is chosen.
-- `CombatPresenter` maps ordered engine events to presentation tokens and actor/UI reactions. Presentation does not mutate authoritative state.
-- Input is disabled/ignored only where accepted gameplay events are intentionally resolving or simultaneous commands would violate state consistency; commands are not invisibly queued.
-- Every required presentation token has a safe fallback binding so missing optional animation/VFX cannot block gameplay.
-- Generated art is permitted throughout development and may bind to production content as soon as its schema/reference contract exists; generation method does not imply placeholder status.
-
-## 3. Repository and Unity Assembly Layout
-
-### 3.1 Intended Layout
-
-```text
-Assets/
-  Bloomdrawn/
-    Engine/
-      Combat/
-      Cards/
-      Status/
-      Map/
-      Rewards/
-      Gacha/
-      Profile/
-      Equipment/
-      Trials/
-      Rng/
-      Save/
-      Bloomdrawn.Engine.asmdef
-
-    Content/
-      Runtime/
-      Validation/
-      Generated/
-      Bloomdrawn.Content.asmdef
-
-    Application/
-      Sessions/
-      Persistence/
-      Bootstrap/
-      Bloomdrawn.Application.asmdef
-
-    Presentation/
-      Combat/
-        Actors/
-        Cards/
-        HUD/
-        Targeting/
-        VFX/
-      Map/
-      MetaUI/
-      Audio/
-      Assets/
-      Bloomdrawn.Presentation.asmdef
-
-    Editor/
-      ContentImport/
-      PipelineCommands/
-      BuildTools/
-      DeveloperWindows/
-      Bloomdrawn.Editor.asmdef
-
-    Tests/
-      EditMode/
-      PlayMode/
-      Fixtures/
-      Golden/
-      Simulation/
-
-GameContent/
-  production/
-  fixtures/
-  generated/
-
-ProjectSettings/
-Packages/
-Tools/
-plans/
-```
-
-Exact folder names may be refined in M0A, but dependency direction and fixture separation are contractual.
-
-### 3.2 Assembly and Package Boundaries
-
-- `Bloomdrawn.Engine` contains deterministic rules and has `noEngineReferences` enabled.
-- `Bloomdrawn.Content` contains pure content contracts/runtime registry interfaces and validation data models; Unity-specific import tooling belongs in `Bloomdrawn.Editor`.
-- `Bloomdrawn.Application` bridges repositories and authoritative sessions; it may reference Engine/Content but not Editor tooling.
-- `Bloomdrawn.Presentation` contains Unity actors, uGUI, SpriteRenderer/URP bindings, animation, VFX, audio, and user input adaptation; it may reference Application/Engine/Content but never the reverse.
-- `Bloomdrawn.Editor` contains custom importers/validators, Pipeline `[CliCommand]` tools, build helpers, and developer-only utilities and must not enter production Player logic.
-- Tests are split between Edit Mode and Play Mode assemblies and may use isolated fixture registries.
-- Persistence access goes through repository interfaces. UI components and engine modules must not read/write save files directly.
-
-### 3.3 Naming and ID Rules
-
-- Definition IDs are stable kebab-case strings, scoped by family where useful, such as `character.mara` or `card.mara.incise`.
+- Definition IDs are stable kebab-case strings scoped by family where useful (e.g. `character.mara`, `card.mara.incise`).
 - Runtime instance IDs are distinct from definition IDs and from Unity instance IDs.
-- Content versions are explicit.
-- Display names are content/localization fields, not IDs.
-- Production content may not depend on filename-derived, prefab-name-derived, or GameObject-name-derived implicit IDs.
-- Scene/prefab object names are presentation/debug conveniences only.
+- Content versions are explicit and recorded in saves and replays.
+- Definition IDs are never casually reused. Reusing an ID is a compatibility-breaking act and requires a decision.
+- Display names are content/localization fields, never IDs.
 
-### 3.4 Non-Production Fixture Lifecycle
+#### 6.5 Extension points preserved
 
-- Fixture definitions use an explicit non-production ID namespace and marker.
-- Fixture content is loaded only from isolated test/development sources, never by an undifferentiated production registry.
-- Engine, UI, persistence, and presentation code may not branch on fixture definition IDs.
-- Production profiles, saves, banners, Shops, inventories, equipment snapshots, presentation catalogs, and release registries may not reference fixture IDs.
-- A milestone that replaces a runtime fixture with production content must define its cutover and retirement step explicitly.
-- Retired runtime fixtures may remain under `Assets/Bloomdrawn/Tests/Fixtures` or `GameContent/fixtures` when they provide stable regression coverage without coupling tests to production tuning.
+The architecture preserves the DD-22/DD-23 extension points so post-launch content does not force rework:
 
-## 4. Testing and Verification Contract
+- damage and HP-loss outcomes carry source metadata (command ID, owner, source kind, Shield absorbed, HP dealt);
+- status target scope and persistence scope are explicit even when launch statuses are combat-scoped;
+- Domain automatic effects are typed operations, not character branches;
+- card instance ownership, pile, generated/combat-scoped flags, costs, and spent once-per-instance flags are explicit;
+- Draw order stays hidden from previews and rejected commands.
 
-### 4.1 Required Test Layers
+Preserving a door is not implementing what is behind it. Launch content must not use these hooks until their Tier 3 gate is implemented.
 
-1. **Edit Mode unit tests:** formulas, piles, status timing, resources, targeting, RNG, saves, gacha/pity helpers, equipment stat calculation, profile-shop transactions, content parsing/validation, and pure geometry.
-2. **State-machine tests:** legal/illegal commands, phase transitions, command rejection, terminal states, and rejected-command RNG invariants.
-3. **Content/import validation:** canonical YAML/JSON, IDs, formulas, references, presentation asset IDs, Trial tables, banner pools, rarity tables, weapon definitions, gear sets/stat pools, Profile Shop offers, motifs, and generated runtime registry hashes.
-4. **Seed/property stress tests:** map reachability, no softlocks, resource non-negativity, deterministic command outcomes, and content generation across large fixed seed ranges.
-5. **Golden deterministic tests:** fixed content + seed + commands produce a semantic event trace and checksum independent of frame rate/presentation.
-6. **Play Mode integration tests:** card fan layout, hover/select, drag threshold/return, target selection, actor binding, preview parity, event presentation order, map traversal, and representative meta flows.
-7. **Built-player/E2E checks:** profile creation through run completion, save/reload, direct pull, character leveling, Trial reward persistence, equipment loadout snapshot, gear reroll/desynthesis, and Profile Shop purchase where the milestone owns those systems.
-8. **Visual/layout evidence:** automated/manual screenshots across declared aspect ratios may support review, but they never replace functional assertions.
+#### 6.6 The modularity audit
 
-### 4.2 Stable Validation Entry Points
+M11 runs a modularity audit that proves the invariant held:
 
-M0A/M0F create project-owned PowerShell wrappers so agents and humans do not have to remember raw Unity Editor batch-mode syntax:
+- no production content ID appears in engine or UI conditionals;
+- every content family loads through the registry;
+- a sample "add a new card" and "add a new enemy" exercise completes as a data-only change;
+- fixture IDs have not leaked into release registries, profiles, saves, or snapshots;
+- generated registry artifacts reproduce from canonical content.
 
-```text
-Tools/validate.ps1
-Tools/test-editmode.ps1
-Tools/test-playmode.ps1
-Tools/build-smoke.ps1
-Tools/simulate.ps1
+If the audit finds a place where adding content requires editing engine code, that is a release-blocking defect, because it means the expansion contract is broken.
+
+## PART II — PROCESS AND WORKFLOW
+
+### 7. Task Governance and Ceremony Model
+
+This section defines how work is decomposed, who does it, and how it is certified. It exists to fix the two failure modes this project has already paid for: Gloomdrawn's absence of governance, and the previous Unity plan's excess of it. Governance here is invariants, gates, and certification. Everything else is kept deliberately light.
+
+#### 7.1 Two kinds of task document
+
+Work is carried by exactly two document shapes:
+
+1. **Full task plan** (template in §30). Required only for:
+   - milestone exit gates;
+   - schema or content-family locks (e.g. M2A, M8X-A);
+   - save-affecting work and migrations;
+   - DD-gated system implementation (M8, M8T, M8X families);
+   - cross-layer integration where engine, application, and presentation change together;
+   - any task that touches a §1.3 invariant.
+
+2. **One-page brief** (template in §30). Used for all other intra-milestone work. A brief states objective, in-scope work, non-goals, authority references, observable acceptance behaviour, and stop conditions. It does not freeze mechanism, API shape, helper design, or tooling internals.
+
+The prior plan decomposed the project into ~90 pre-specified task files and treated each as a contract. That inverted the purpose of planning: it specified mechanism (which Unity owns) and under-specified feel and visibility (which only humans own). This plan specifies fewer documents, but each one that exists is authoritative.
+
+#### 7.2 What task documents must not contain
+
+A task document, full or brief, must not contain:
+
+- implementation hashes, correction budgets, attempt counts, or polling algorithms;
+- manifest packets, parallel-packet requirements, or frozen runner contracts;
+- approval tiers, workforces, or escalation ladders not defined in this plan or the agent configurations;
+- restated gameplay rules — a task document points at `docs/DESIGN.md` sections and approved DDs; it does not re-derive them;
+- mechanism prescriptions for presentation internals (coordinate conversion strategy, tween curves, layout algorithms). The plan states the invariant (no drift, no off-screen loss, no mutation before acceptance); the Builder chooses the mechanism.
+
+If a task document appears to need any of the above, that is a signal the task is mis-scoped, not that the document needs more ceremony.
+
+#### 7.3 Roles and their governance interface
+
+The project runs inside the Opencode harness. Role *permissions* live in the `.opencode/` agent definitions and `AGENTS.md`; this plan defines *when a role is invoked and what it certifies*, and nothing more. The governance interface is:
+
+| Role | Invoked for | Certifies / produces | Must not |
+|---|---|---|---|
+| Lead Planner (this document's author) | Implementation plan, milestone gates, sequencing, DD preparation, re-baseline | This plan; gate status; decision drafts | Implement product code |
+| Opencode Planner | One bounded task that is genuinely ambiguous or substantial | A concise `plans/tasks/**` plan | Edit product code, authority, governance, skills |
+| Builder | One active task at a time | Product implementation + developer tests + routine validation evidence | Edit plans/, docs/, acceptance/, governance; commit |
+| Auditor | After Builder completion | Exactly one verdict: PASS / PASS WITH FOLLOW-UPS / FAIL / BLOCKED | Repair anything; weaken acceptance |
+| Acceptance Engineer | Risk-based only (§7.5) | Protected executable acceptance for flagged gates | Edit product code or developer tests |
+| Git Steward | Owner-invoked after certification | Explicit-path staging, one non-amending commit, non-force push | Broad staging; force pushes; edits |
+| Sol-Specialist | Builder escalation on a genuinely hard, bounded technical blocker | Deep-reasoning repair within a stated boundary | Open-ended redesign |
+
+#### 7.4 Default flow of work
+
+1. **Entry.** The task's milestone entry criteria and content-readiness prerequisites (§3) are met. The task exists as a brief or full plan.
+2. **Build.** The Builder implements, writes or extends developer tests, and validates with `Tools/*.ps1` and `bloom.*` commands. Player-facing claims require ordinary-runtime evidence through an `-automated` Editor (§2.7), not controller calls or session injection.
+3. **Certify.** The Auditor independently verifies and returns a verdict. `FAIL` returns bounded findings to the Builder. `BLOCKED` routes to the Planner or owner as an authority question, never as an implementation guess.
+4. **Accept (conditional).** The Acceptance Engineer runs only if the task is flagged in §7.5.
+5. **Commit.** The Git Steward commits on `PASS` or `PASS WITH FOLLOW-UPS`, staging only the allowlisted paths.
+6. **Record.** A worklog entry records the task, verdict, evidence, and any follow-ups.
+
+This is the entire routine. Any step added beyond it is a plan-level change (§1) and requires owner approval.
+
+#### 7.5 Risk-based acceptance and the anti-bureaucracy clause
+
+Protected executable acceptance is **risk-based, not default**. It is appropriate for:
+
+- milestone exit gates (M1 feel/stability gate, M2 exit, M4 winnable-run gate, and later gates);
+- cross-layer Unity integration where developer tests could bypass the real runtime;
+- previously façade-prone areas (the card drag system is permanently flagged, given its history);
+- important player-facing interaction regressions.
+
+Ordinary tasks are certified by Builder tests plus independent Auditor verification. That is the whole gate.
+
+**The anti-bureaucracy clause.** No role may invent a gate, manifest, hash pin, approval tier, correction budget, or workflow that does not exist in this plan, the agent configurations, or `AGENTS.md`. The previous planning regime froze a simple interaction task behind a "protected acceptance infrastructure recovery" it had itself invented; that failure mode is now explicitly forbidden. When uncertainty arises, the cure is a bounded question to the owner with a recommended option — never an invented ritual. A task that cannot proceed under the flow in §7.4 is stopped and raised as a plan-level or design-level change (§1), and the stop itself is recorded in the worklog.
+
+#### 7.6 Owner-decision discipline
+
+Roles ask the owner only when a choice materially changes player-visible behaviour, milestone scope, architecture, authority, persistence/schema/content contracts, acceptance behaviour, destructive operations, or the definition of completion. Questions carry a recommended option first and meaningful trade-offs. Private implementation and tooling details are never owner questions.
+
+---
+
+### 8. The Weekly Playable Ratchet
+
+#### 8.1 The rule
+
+Every merge to the working branch keeps the project playable: a human can open the pinned Unity Editor, press Play, and interact with at least one meaningful scene. The floor rises with the project:
+
+- M0 onward: the bootstrap/dev scene enters Play Mode and reports health.
+- M1 onward: the committed combat scene bootstraps fixture combat and accepts real input.
+- M3 onward: the map scene is traversable in a development run.
+- M4 onward: a run can be saved, closed, and resumed.
+
+#### 8.2 What breaks the ratchet
+
+A merge breaks the ratchet if it introduces: compile errors on open; a scene that throws or soft-locks on Play; an interaction path that submits unintended commands or loses input; a content-validation failure that blocks registry build; or a save/load path that corrupts previously valid state.
+
+A ratchet break is fixed or reverted before further feature work lands. This is non-negotiable, because the ratchet is the mechanism that enforces *visibility before breadth* (§0.3). It is what prevents this project from becoming its predecessor: a large correct scaffold that nobody could play.
+
+#### 8.3 Evidence
+
+Brief-level tasks prove the ratchet with the existing wrappers (`Tools/validate.ps1`, `test-playmode.ps1`, `build-smoke.ps1`). Milestone closures add interaction evidence: what was clicked/dragged, at which aspect ratios, with what result. Screenshots support review; they never replace behavioural evidence.
+
+#### 8.4 Relationship to tests
+
+The ratchet is a sanity floor, not a substitute for the test contract (§9). A project can pass every headless test and still feel wrong; the ratchet guarantees there is always a living surface on which feel can be judged.
+
+---
+
+### 9. Validation and Testing Contract
+
+This section condenses the testing doctrine into process terms. The authoritative list of invariants lives in `docs/DESIGN.md` §17; this section states how evidence is produced and weighed.
+
+#### 9.1 Test layers and what each proves
+
+| Layer | Proves | Runs |
+|---|---|---|
+| Edit Mode unit | Formulas, piles, statuses, resources, targeting, RNG, repositories, import validation | Headless, fast |
+| State-machine | Legal/illegal commands, phase transitions, rejection, terminal states | Headless |
+| Content/import validation | IDs, references, formulas, asset refs, registry hashes | Editor/build |
+| Seed/property stress | Map reachability, combat invariants across large seed samples | Headless batch |
+| Golden deterministic | Fixed content + seed + commands → fixed semantic trace and checksum | Headless |
+| Play Mode integration | Hand layout, drag threshold/return, targeting, actor binding, previews, sequential presentation | `-automated` Editor |
+| Built-player E2E | Profile → run → rewards → save/reload flows at milestone gates | Built/development Player |
+| Visual/layout evidence | Composition and aspect-ratio review | Supports, never replaces |
+
+No layer substitutes for another. Golden tests cannot prove feel; Play Mode tests cannot prove determinism; screenshots prove neither.
+
+#### 9.2 The feel/determinism split
+
+Deterministic behaviour is proven headlessly: same inputs, same events, same checksum, independent of frame rate and presentation. Feel is proven by human interaction in the `-automated` Editor: repeated drag/cancel cycles, hover behaviour, cancellation smoothness, aspect-ratio stability.
+
+This split is load-bearing. The previous regime optimised a headless harness for a feel problem and produced a combat that passed its tests and felt wrong. From M1 onward, every milestone whose exit criteria include feel or layout carries an explicit human-verified gate, and that gate is recorded as interaction evidence, not as a test count.
+
+#### 9.3 Non-weakenable discipline
+
+- Failing deterministic, content-validation, or required Edit/Play Mode tests block task completion.
+- A task may add tests; it may never weaken an invariant to pass.
+- Any preview/resolution mismatch is an engine or adapter defect, not cosmetic drift.
+- Any drag/layout defect that can lose a card off-screen, accumulate drift, submit an unintended command, or mutate state before acceptance blocks the owning combat milestone.
+- Rejected commands must be shown to consume no RNG and mutate no state; this is asserted in tests, not assumed.
+- Compilation alone is never evidence of correct Unity behaviour.
+
+#### 9.4 Validation entry points
+
+Stable wrappers exist so no role memorises raw Editor syntax:
+
+- `Tools/validate.ps1`
+- `Tools/test-editmode.ps1`
+- `Tools/test-playmode.ps1`
+- `Tools/build-smoke.ps1`
+- `Tools/simulate.ps1`
+- `Tools/get-unity-editor-state.ps1` and `Tools/open-automated-editor.ps1` for the `-automated` Editor path
+
+Project-owned `bloom.*` CLI commands (`bloom.health`, `bloom.validate-content`, `bloom.scene-summary`, `bloom.load-combat-fixture`, `bloom.reset-combat-fixture`, `bloom.dump-combat-state`, `bloom.validate-combat-layout`) grow with the milestones that own them. The installed `unity --help` / `unity command --help` output is authoritative; the CLI is experimental and must never become a runtime dependency.
+
+#### 9.5 Evidence language
+
+Completion reports state evidence, not confidence: files changed; commands and tests run; pass/fail counts; runtime interactions checked; aspect ratios checked; concerns left unresolved and why. "Should work" and "appears fine" are not evidence and are treated as missing evidence.
+
+---
+
+### 10. Repository, Assembly, and Tooling Layout
+
+This section condenses the structural contract. Exact folder names may be refined, but dependency direction and fixture separation are contractual.
+
+#### 10.1 Assemblies
+
+| Assembly | Contains | Boundary |
+|---|---|---|
+| `Bloomdrawn.Engine` | Combat state machine, cards, statuses, map, rewards, gacha, profile/equipment rules, RNG, save-model helpers | No Engine References: no `UnityEngine`, `UnityEditor`, scenes, `MonoBehaviour`, frame time, `UnityEngine.Random`, input, storage, presentation assets |
+| `Bloomdrawn.Content` | Pure content contracts, registry interfaces, validation models | Unity-object-free |
+| `Bloomdrawn.Application` | Sessions (`ProfileSession`, `RunSession`, `CombatSession`), persistence repositories, bootstrap | References Engine/Content; no Editor tooling |
+| `Bloomdrawn.Presentation` | Actors, uGUI/TMP, Input System adaptation, animation, VFX, audio, `PresentationAssetCatalog` | Consumes authoritative state/events; never the reverse |
+| `Bloomdrawn.Editor` | Import/validators, `[CliCommand]` tools, build helpers, developer windows | Never enters production Player logic |
+| Tests (Edit/Play/Acceptance) | Layered per §9 | Acceptance isolated with its own edit boundary |
+
+Dependency direction is one-way: Presentation → Application → Engine/Content; Editor may reference everything for tooling but is referenced by nothing at runtime. Circular references are never solved by collapsing boundaries.
+
+#### 10.2 Content layout
+
+- `GameContent/production/` — validated production definitions (YAML by default, DD-13).
+- `GameContent/fixtures/` — isolated non-production definitions (§4), loaded only by test/development sources.
+- Generated runtime registries, hashes, and manifests — derived artifacts, reproducible from canonical content, never hand-edited, never authoritative.
+
+#### 10.3 IDs and naming
+
+Definition IDs are stable kebab-case strings scoped by family (`character.mara`, `card.mara.incise`). Runtime instance IDs are distinct from definition IDs and from Unity instance IDs. Display names are content/localization fields, never IDs. No gameplay rule may depend on a GameObject name, prefab name, scene path, or Animator state name.
+
+#### 10.4 Tooling stance
+
+Unity CLI and `com.unity.pipeline` close the edit/observe/verify loop for agents and humans. They are development surfaces: the project builds, tests, and plays without them. Repeated operations become source-controlled `bloom.*` commands; `unity command eval` is ad-hoc inspection, never authored gameplay behaviour; Pipeline runtime control never ships in release builds.
+
+## PART III — RE-BASELINE
+
+### 11. Task 0 — Gap Audit & Re-Baseline
+
+#### 11.1 Why this task exists
+
+This plan is written from first principles and deliberately does not assume the current repository. The repository, however, contains two weeks of prior work — most of it sound spine, some of it bureaucratic overlay. Task 0 is the bridge: it inventories what exists, classifies every significant artifact against this plan, and produces an owner-approved re-baseline task list. Nothing is kept by inertia and nothing is deleted by reflex.
+
+#### 11.2 Audit scope
+
+The audit covers, at minimum:
+
+- assembly boundaries and engine purity (§2.2, §10.1);
+- schema/content import and registry pipeline (§2.3, §10.2);
+- named RNG substreams and golden replay fixtures;
+- command/event protocol and rejection semantics;
+- save envelope and repository interfaces;
+- M1 presentation: combat scene, independent actors, card fan, drag/Play Area system, presentation adapter;
+- test estate: Edit Mode, Play Mode, golden, and acceptance tests;
+- tooling: `Tools/*.ps1` wrappers, `bloom.*` commands, `-automated` Editor launchers;
+- process artifacts: `agent-tasks/`, `acceptance/manifests/`, `acceptance/locks/`, worklog entries, and any frozen or blocked task states.
+
+#### 11.3 Classification rules
+
+Every audited artifact is classified exactly once:
+
+- **Keep** — matches this plan's contracts and passes current evidence. Committed without change or with editorial cleanup only.
+- **Refactor** — sound spine in the wrong shape: over-specified ceremony, webstack-shaped abstractions, mechanism frozen where this plan leaves mechanism open. Carried forward through a bounded brief.
+- **Discard** — hallucinated governance (invented gates, manifests, workforces, correction budgets), hardcoded placeholders, fixture leakage, or code whose only purpose is satisfying a discarded process. Removed or archived with a worklog note.
+
+The test for Discard is precise: if an artifact exists to satisfy a process this plan does not define, and removing it changes no approved behaviour, it is discarded.
+
+#### 11.4 Known items entering the audit
+
+The following are recorded as audit inputs, not pre-judged outcomes. The audit confirms or revises each classification with evidence:
+
+- Engine/Content/Application/Presentation/Editor assembly spine — expected Keep, subject to purity evidence.
+- `CardDragLayer`-class presentation utilities — expected Keep; the mechanism is standard and plan-consistent.
+- M1 fixture content under isolated sources — expected Keep, subject to §4 namespace and leakage checks.
+- The frozen M1-D01 task state, its manifest, and its "protected acceptance infrastructure recovery" — expected Discard as process. Any Builder implementation it produced is re-evaluated on behaviour alone under §12.
+- The M1-D01 runtime drag acceptance test — reclassified under §7.5: legitimate as the M1 milestone gate harness if it drives public input through the ordinary committed scene; illegitimate as a per-task blocker. Renamed and re-scoped accordingly.
+- `worklog.md` — Keep as historical record; future entries follow §7.4.
+
+#### 11.5 Deliverables and exit
+
+Task 0 delivers:
+
+1. a Gap Audit report (plan-level document) listing every audited artifact, its classification, and its evidence;
+2. a re-baseline task list of bounded briefs for every Refactor item;
+3. removal or archival of every Discard item, staged by the Git Steward under owner authority;
+4. a corrected milestone ledger stating which M0/M1 exit criteria are currently evidenced, partially evidenced, or unevidenced.
+
+Exit: no artifact remains unclassified; no frozen or blocked phantom gate remains; the repository's governance surface matches this plan (`AGENTS.md`, agent definitions, this plan, task briefs, skills as toolchain teaching only); and the corrected milestone ledger is owner-approved.
+
+---
+
+### 12. M1 Feel & Stability Pass
+
+#### 12.1 Why this pass exists
+
+M1 was validated by headless and harness evidence. It has never been tuned by a human hand, and the prior regime's cardinal error was optimising a threshold harness for a feel problem. M2 builds every future combat on M1's interaction surface; a defect in feel compounds across the whole project. Therefore feel is fixed before breadth, and this pass is the first application of the feel/determinism split (§9.2).
+
+#### 12.2 Scope
+
+In scope:
+
+- resting fan composition and expansion/contraction within safe bounds;
+- hover/focus rise and scale timing;
+- drag smoothing and pointer fidelity;
+- armed indication readability (non-colour-only);
+- cancellation/return animation;
+- explicit-target staging and legal-target highlight;
+- actor idle/act/hit/return reactions sufficient to read ownership;
+- stability at 16:9, 16:10, and one ultrawide reference.
+
+Out of scope:
+
+- production characters, Domain mechanics, or production content;
+- replacement of the M1 actor model, fan model, drag state machine, or presentation adapter (polish, never replace — §2.8);
+- preview systems beyond what M1 already owns (the minimal authoritative evaluator arrives at M2H).
+
+#### 12.3 Mechanism freedom
+
+The Builder chooses the interpolation/tween mechanism. The plan's preference is a small presentation-only interpolation helper consistent with the approved architecture; a third-party tween package requires a brief-level justification and must remain presentation-only, deterministic-state-free, and removable. Mechanism choices are recorded in the brief, not frozen by this plan.
+
+#### 12.4 The feel gate
+
+The feel gate is human-verified interaction evidence, recorded per §9.5:
+
+- repeated drag/cancel/play cycles read as smooth and intentional, with no visible snap, jump, or dead zone;
+- cancellation returns the card to a correctly recomputed fan every time;
+- arming and disarming are readable at a glance;
+- owner acknowledgement and enemy reactions make each action attributable;
+- the interaction is qualitatively benchmarked against the reference bar: Gloomdrawn's card feel. Where the two differ, the difference must be a deliberate improvement, not an unexamined regression.
+
+The feel gate cannot be satisfied by test counts, harness traces, or screenshots alone. It is signed off by the owner (or the owner's delegate) playing the ordinary committed scene through public input.
+
+#### 12.5 The stability gate
+
+Simultaneously, the M1 stability invariants re-run and must pass:
+
+- no cumulative positional or rotational drift across repeated interaction;
+- no card lost off-screen at any required aspect ratio;
+- no unintended command submission from any gesture path;
+- no authoritative mutation or RNG consumption before command acceptance;
+- click/keyboard parity with drag paths.
+
+#### 12.6 Exit
+
+M1 exits when both gates are evidenced: the feel gate as interaction evidence (§12.4) and the stability gate as test evidence (§12.5), plus the corrected milestone ledger from Task 0 confirming M1's remaining exit criteria. M2 entry is unlocked only by that combined evidence.
+
+## PART IV — MILESTONES
+
+### 13. Milestone Spine Overview and Dependency Graph
+
+#### 13.1 The spine
+
+| # | Milestone | Delivers | Exit gate | Change vs. prior plan |
+|---|---|---|---|---|
+| 0 | Task 0 — Gap Audit & Re-Baseline | Inventory + keep/refactor/discard ledger | No unclassified artifact; no phantom gate | NEW |
+| 0 | M1 Feel & Stability Pass | Tactile correction of the M1 interaction surface | Feel gate + stability gate evidenced | NEW |
+| 0 | M0 Foundation | Project, pure engine, schema/content, RNG, commands, save envelope, tooling | Golden test passes; engine has no Unity refs | Kept, marked complete |
+| 1 | M1 Combat Foundation + Feel | Fixture combat through the permanent presentation path | Deterministic combat playable + feel/stability gate | Feel moved up from M9 |
+| 2 | M2 First Playable Slice | Schema lock + starter four, four Domain engines, Transcend, real art bindable | Starter party playable, all engines, feel gate, M1 fixtures retired | Feel gate + immediate art added |
+| 3 | M3 Minimal Labyrinth | Map, nodes, motifs, collapsing nodes, shops, symptoms, **fixture boss**, Obols | Temptation loop playable & deterministic | Fixture boss made explicit |
+| 4 | M4 First Winnable Run | Run completion, banking, persistence, save/resume | **First winnable, saveable, resumable run** (fixture boss) | NEW explicit visibility gate |
+| 5 | M5 Full Roster | Remaining four characters, roster/party UI, onboarding | All eight playable; onboarding completes | Granularity reduced |
+| 6 | M6 Encounters & Boss | Enemy/encounter pools, **production phased boss**, keepsakes, symptoms/curses, rewards | Production boss replaces fixture boss; M3 fixtures retired | Boss split |
+| 7 | M7 Map Breadth | Motif library, constraints, reveal, route reports | Large-seed validation passes | Kept |
+| 8 | M8 Gacha & Meta | Direct pulls, banners, pity, dupes, EXP/Sigils, profile caps | Direct-pull loop works | DD gates named as critical path |
+| 8T | M8T Trials | Trial families, difficulties, targeted rewards | DD-gated | Kept |
+| 8X | M8X Equipment & Shop | Weapons, gear, Profile Shop, inventory, snapshots | DD-gated | Kept |
+| 9 | M9 Combat UI/UX Closure | Polish M1/M2 systems, previews, accessibility | Production-usable combat | Polishes, doesn't replace |
+| 10 | M10 Art/Audio Closure | Presentation catalog, assets, VFX/audio, performance (DD-31) | All roles resolve; perf baseline met | Kept |
+| 11 | M11 Release Gate | Balance, audits, seeded E2E, release candidate | Content lock passes all gates | Kept |
+
+#### 13.2 Dependency graph
+
+```
+Task0 -> M1(pass) -> M2 -> M3 -> M4 -> M5 -> M6 -> M7
+  M0 --'                |     |     |
+                        |     |     +--> M8 -> M8T -> M8X
+                        |     +--> M6
+                        +--> M5 -> M6
+  M6 -> M8T
+  M7/M8/M8T/M8X/M9/M10 -> M11
+  M1 -> M9 ; M2 -> M9 ; M9 -> M10
 ```
 
-The scripts must resolve/use the Editor version declared by the project, return non-zero on failure, and produce concise logs/results. Exact internal Unity invocation is implementation detail and may change with Editor/CLI versions.
+Reading rules: an arrow means the target's entry criteria consume the source's exit evidence. The fixture boss is authored in M3 (stage 2 of the Content Readiness Chain) and consumed by M4; the production boss is authored in M6 and replaces it. No milestone references content that has not reached registry stage 2 in a registry it may read (§3).
 
-Unity CLI/Pipeline project commands supplement rather than replace these scripts. At minimum M0F should expose project health and content validation through the connected Editor. Later milestones add combat/map-specific commands.
+#### 13.3 The gate model
 
-### 4.3 Non-Weakenable Discipline
+Every milestone exit is evidenced by up to three gate kinds, and a milestone is not complete until every kind it declares is satisfied:
 
-- Failing deterministic tests block task completion.
-- Failing content validation blocks task completion.
-- Failing required Edit Mode/Play Mode tests block task completion.
-- Production gameplay content hardcoded outside validated content files blocks task completion.
-- A task may add tests or fixtures, but may not weaken invariants to make implementation pass.
-- Any preview/resolution mismatch is treated as an engine or adapter defect, not as cosmetic UI drift.
-- Any card drag/layout defect that can lose a card off-screen, accumulate resting-position drift, submit an unintended command, or mutate state before acceptance blocks the relevant combat milestone.
-- Agent verification must include actual test/Editor/runtime evidence where available; compilation alone is not proof of correct Unity behaviour.
+1. **Deterministic gates** — headless Edit Mode, golden, content-validation, and property evidence. Proves the rules.
+2. **Runtime gates** — Play Mode or built-Player evidence through the ordinary scene and public input, via an `-automated` Editor. Proves the integration.
+3. **Human gates** — owner- or delegate-verified interaction/visibility evidence (feel, layout, readability). Proves the experience.
 
-## 5. Corrected Dependency Graph
+The prior plan collapsed kind 3 into kinds 1 and 2 and therefore shipped combat that passed its tests and felt wrong. From M1 onward, any milestone whose exit includes feel, layout, or visibility declares a human gate, and that gate is recorded as interaction evidence (§9.5), never as a test count.
 
-```text
-M0 -> M1 -> M2 -> M3 -> M4
-             |     |     |
-             |     |     -> M8
-             |     -> M6 -> M7 -> M10
-             -> M5 -> M6 -> M9 -> M10
-M4 -> M8 -> M8T -> M8X
-M5 -> M8
-M6 -> M8T
-M7/M8/M8T/M8X/M9/M10 -> M11
-```
+#### 13.4 Granularity rule for this part
 
-Notes:
-
-- M1 owns the permanent independent-actor, card-hand, Play Area, target-selection, and initial presentation-token architecture. M9/M10 polish/close those systems rather than replacing them wholesale.
-- M8T is the implementation-plan task phase for Trials, corresponding to the `docs/DESIGN.md` launch milestone labelled `M8B - Trials`. The distinct `M8T` ID prevents duplicate task IDs.
-- M2 must not author production character content before M2A locks the production schema using the approved DD-02, DD-03, and DD-13 decisions.
-- M3/M4 may prove reward transactions only with isolated non-production tables; production quantities remain blocked by DD-10.
-- M6 must retire M3 runtime content fixtures when production run content replaces them.
-- M8 must not implement production gacha/progression state before M8A/M8B lock DD-05, DD-06, DD-07, DD-10, DD-11, and DD-15; all production content must follow the DD-13-approved format policy.
-- M8T must not implement production Trial definitions or rewards before DD-10 and DD-12; all Trial content must follow the DD-13-approved format policy.
-- M8X must not implement rarity/equipment/Profile Shop systems before DD-15 through DD-20 are approved.
-- Future advanced character mechanics must not enter production content before a DD-22 follow-up task implements their generic engine, UI, save, and test contracts.
-- Future advanced card-memory/copy mechanics must not enter production content before a DD-23 follow-up task implements copy eligibility, lifetime, hidden-information, save, UI, and test contracts.
-- M4 may implement schema capability for combat saves before DD-04, but exposed UX must obey the approved checkpoint decision.
-- M4 persists only systems implemented through M4; M8, M8T, and M8X own later save-schema additions and migrations.
+Milestones below are described as **work clusters**, not pre-decomposed task files. A cluster becomes a full task plan only if it is a milestone gate, a schema/decision lock, save-affecting, DD-gated, or cross-layer (§7.1). All other clusters are carried by one-page briefs at execution time. This document fixes each milestone's entry criteria, invariants, and gates; it deliberately does not freeze intra-cluster mechanism.
 
 ---
 
-# PHASE M0 - Unity Repository Contract and Foundations
+### 14. M0 — Foundation (present, marked complete)
 
-## M0 Goal
+#### 14.1 Goal
 
-Establish the Unity project, deterministic engine boundary, schema/content import discipline, test/validation entrypoints, local persistence boundary, and agent-visible Editor tooling before real gameplay content implementation.
+Establish the Unity 6.5 project, the pure engine boundary, schema/content import discipline, named RNG, command/event protocol, save envelope, validation entry points, and agent-visible Editor tooling, before real gameplay content.
 
-## Task M0A - Unity Project, Assemblies, and Quality Contract
+#### 14.2 Status
 
-**Objective:** Create the production-shaped Unity workspace and dependency gates.
+M0 is treated as **complete**, subject to confirmation by the Task 0 Gap Audit (§11). The audit re-verifies, rather than assumes:
 
-**Implementation:**
+- `Bloomdrawn.Engine` compiles with No Engine References and no `UnityEngine`/`UnityEditor` dependency;
+- YAML/JSON canonical content imports through validators into a reproducible generated registry;
+- named RNG substreams serialize and roundtrip through the DD-30 serializer;
+- command/event protocol returns accepted/rejected results with stable golden checksums;
+- save envelope and repository interfaces exist with atomic write and previous-valid fallback;
+- `Tools/*.ps1` wrappers and `bloom.health` / `bloom.validate-content` / `bloom.scene-summary` work;
+- the bootstrap/dev scene enters Play Mode with no production content.
 
-- Create the project on the Unity 6.5 Supported line and commit `ProjectSettings/ProjectVersion.txt` to pin the exact `6000.5.x` patch used by the repository.
-- Set the coding baseline to Unity's documented C# 9.0 support; avoid C# 10+ constructs and avoid unsupported/caveated C# 9 features unless a task explicitly proves the workaround/toolchain need.
-- Configure URP with the 2D Renderer and the baseline Windows development Build Profile/settings.
-- Install/enable required first-party packages for the initial workflow, including Input System and Unity Test Framework; keep optional packages out until a task needs them.
-- Create Assembly Definitions following section 3, with `Bloomdrawn.Engine` and the deterministic/runtime content assembly using No Engine References; Unity-specific import/asset glue belongs in Editor/Application/Presentation assemblies.
-- Configure Git ignore/LFS policy for Unity generated directories and binary art/audio where appropriate.
-- Add repository-level `AGENTS.md`/skill references separately from game design docs; agents must prefer current Unity documentation and project commands over remembered experimental CLI syntax.
-- Create the `Tools/*.ps1` validation wrapper skeletons.
+#### 14.3 Exit (as evidenced, to be confirmed)
 
-**Required tests:**
+Fixed-seed golden test passes; sample content imports; project opens/builds under the pinned Unity version; engine assembly has no Unity dependency; an agent can query project health through documented tooling.
 
-- project opens in the pinned Editor without compile errors;
-- Engine and deterministic/runtime content assemblies cannot compile code that references `UnityEngine`/`UnityEditor`;
-- Windows smoke build/bootstrap scene starts;
-- Edit Mode and Play Mode test assemblies discover at least one smoke test.
-
-**Exit criteria:**
-
-- `Tools/validate.ps1` and `Tools/build-smoke.ps1` succeed;
-- pinned Unity version and assembly dependency rules are committed;
-- Engine has no Unity/presentation/persistence implementation dependency.
-
-## Task M0B - Content Schema and Unity Import Foundation
-
-**Objective:** Establish schema-driven content before production content exists.
-
-**Implementation:**
-
-- Create canonical `GameContent/production`, isolated `GameContent/fixtures`, and generated runtime-data locations.
-- Implement C# content DTO/contracts and explicit validators.
-- Implement YAML authoring parser/import tooling and JSON generated-artifact support according to DD-13; runtime does not need to parse YAML.
-- M0B must select and pin one maintained .NET YAML parser for Editor/build tooling (for example YamlDotNet) or record an explicit equivalent; do not build a bespoke general YAML parser inside the gameplay engine. The parser dependency belongs outside `Bloomdrawn.Engine`.
-- Define stable ID rules, content version fields, family discriminators, and logical presentation-asset references.
-- Add sample character, card, enemy, and encounter content using non-production/sample IDs.
-- Implement deterministic runtime registry generation/lookup by stable ID and content hash/version output.
-- Ensure generated registry/cache artifacts are reproducible and clearly non-authoritative.
-
-**Required tests:**
-
-- valid sample content passes;
-- duplicate IDs fail;
-- missing required fields fail;
-- invalid cross-reference fails;
-- malformed/invalid logical presentation-reference IDs fail content validation;
-- same canonical content produces the same content hash/generated registry ordering.
-
-**Exit criteria:**
-
-- `Tools/validate.ps1` validates sample/import content;
-- no production content can enter a runtime registry without validation.
-
-## Task M0C - Deterministic RNG
-
-**Objective:** Implement serializable named RNG streams without Unity random state.
-
-**Implementation:**
-
-- Define RNG state type and deterministic next-value function in `Bloomdrawn.Engine`.
-- Define authoritative named streams: `combat.shuffle`, `combat.targeting`, `enemy.intent`, `map.layout`, `map.content`, `map.nodeModifiers`, `reward`, `shop`, and `gacha`; later milestones add `profile.equipment` when that system becomes live.
-- Store authoritative RNG stream state inside authoritative state.
-- Add helpers to derive substreams from profile/run seeds and stable IDs.
-- `UnityEngine.Random` is forbidden for authoritative gameplay. Cosmetic-only presentation randomness is separate, non-authoritative, unsaved, and unable to alter game state.
-
-**Required tests:**
-
-- same seed produces same sequence;
-- stream advancement is isolated;
-- cosmetic/presentation random calls do not affect or advance authoritative gameplay streams;
-- rejected command fixture consumes no RNG.
-
-**Exit criteria:**
-
-- RNG state is serializable and roundtrips through the chosen save serializer.
-
-## Task M0D - Engine Command/Event Protocol
-
-**Objective:** Define reusable command result, rejection, and ordered gameplay-event envelopes.
-
-**Implementation:**
-
-- Define `CommandResult` in pure C#.
-- Define accepted event envelope with stable ordering fields and runtime source/target IDs where applicable.
-- Define rejected diagnostic shape.
-- Create first no-op/smoke command fixture.
-- Create first golden fixture format: initial state, commands, semantic events, checksum.
-- Reserve semantic presentation metadata only where it is a true engine event fact; do not reference Animator states, prefabs, or VFX names.
-
-**Required tests:**
-
-- accepted command changes state and emits event;
-- rejected command returns unchanged state and diagnostic;
-- golden fixture checksum is stable;
-- event ordering is independent of frame/render state.
-
-**Exit criteria:**
-
-- fixed-seed command smoke test passes in Edit Mode.
-
-## Task M0E - Save Envelope and Repository Interfaces
-
-**Objective:** Establish persistence contracts without committing future systems prematurely.
-
-**Implementation:**
-
-- Define save envelope fields: `saveSchemaVersion`, `engineVersion`, `contentVersion`, checksum, payload.
-- Define profile/run repository interfaces in non-UI application code.
-- Implement in-memory repository for tests.
-- Implement minimal local file repository under `Application.persistentDataPath` sufficient for smoke roundtrip, with temp-write/replace and previous-valid fallback behaviour.
-- Add save validation before load.
-- Save DTOs may contain stable IDs/data only; no Unity object references, scene paths, or instance IDs.
-
-**Required tests:**
-
-- save envelope validates;
-- incompatible schema rejects;
-- in-memory repository saves/loads profile and run payload;
-- local file smoke roundtrip works;
-- interrupted/invalid replacement preserves or recovers the last valid snapshot in the tested failure case.
-
-**Exit criteria:**
-
-- persistence consumers use repository interfaces only.
-
-## Task M0F - Bootstrap Scene and Agent/Editor Tooling
-
-**Objective:** Create the minimal user/developer shell and prove the Unity CLI/Pipeline feedback loop without production gameplay content.
-
-**Implementation:**
-
-- Create a minimal bootstrap/dev scene with Content Validation, Settings/Reduced Motion seed state, and developer status access; do not build a fake production menu hierarchy.
-- Install/configure `com.unity.pipeline` for development according to the current Unity CLI/Package workflow.
-- Add `Bloomdrawn.Editor` project commands for at least `bloom.health`, `bloom.validate-content`, and `bloom.scene-summary`.
-- Establish the minimal typed `PresentationAssetCatalog` contract in the presentation layer: logical presentation ID -> Unity asset binding. It may begin with generic UI/fallback entries, but it must support production character/enemy/card/background bindings without changing deterministic content.
-- Add Editor validation that detects duplicate catalogue IDs, wrong asset role/type, and any content reference marked required-for-current-milestone that does not resolve.
-- Project commands return concise structured data where practical and never become gameplay dependencies.
-- Document that `unity --help`, `unity command --help`, and live command discovery are authoritative because the CLI/Pipeline is experimental.
-- Keep Pipeline runtime components out of production release Player configuration.
-
-**Required tests:**
-
-- bootstrap scene opens and enters Play Mode;
-- project health command can identify project/editor version and registry status;
-- content validation command reports success/failure correctly;
-- presentation catalogue validation reports duplicate/wrong-type/unresolved required bindings;
-- Editor can be queried through Pipeline without manual copy/paste from the Inspector.
-
-**Exit criteria:**
-
-- `Tools/validate.ps1`, Edit Mode smoke tests, Play Mode smoke tests, and `bloom.health` succeed;
-- the Unity CLI/Pipeline layer can fail or change without invalidating the deterministic game architecture.
-
-# PHASE M1 - Minimal Combat Vertical Slice and Presentation Foundation
-
-## M1 Goal
-
-Create playable deterministic combat with an isolated schema-authored fixture party and shared-deck basics **through the permanent production-shaped Unity combat presentation path**. M1 proves generic party construction, owner stat lookup, combat resolution, independent actor binding, battlefield composition, stable bottom-centred card-hand behaviour, drag/Play Area interaction, explicit targeting, and ordered presentation without implementing production characters or Domain mechanics.
-
-## Task M1A - Fixture Party and Combat Setup
-
-Implement:
-
-- four clearly non-production fixture characters with schema-authored HP, Attack, and Defense;
-- one owner-scaled Strike and one owner-scaled Shield for each fixture character;
-- one exact-four fixture lineup;
-- one fixture enemy and one fixture encounter;
-- generic combat setup from a validated content registry plus lineup and encounter input;
-- stable runtime character-owner and enemy-instance IDs unrelated to Unity instance IDs;
-- shared party Max HP calculated from the four character contributions;
-- owner-aware card instances and an eight-card fixture starting deck;
-- encounter enemy instantiation and deterministic initial intent data sufficient for the fixture encounter.
-
-Rules:
-
-- all fixture IDs, values, references, and operation metadata live in validated non-production content;
-- M1 fixture content is separate from M0B schema-validation samples;
-- engine and presentation code cannot identify or special-case fixture definitions;
-- changing fixture stats or card values requires no engine or UI edit;
-- no Mara, Thalassa, Sephira, Azael, Domain resource, passive, ultimate, Transcend, generated-card, or production character gameplay content enters M1.
-
-## Task M1B - Combat State Machine
-
-Implement `COMBAT_SETUP`, `PLAYER_TURN_START`, `PLAYER_ACTION`, `PLAYER_CLEANUP`, `PLAYER_END`, `ENEMY_PHASE_START`, `ENEMY_ACTION`, `ENEMY_END`, `ROUND_END`, `VICTORY`, and `DEFEAT` in the pure engine.
-
-Requirements:
-
-- public commands only during legal phases;
-- terminal state rejects normal combat commands;
-- phase transitions are internal engine operations;
-- no state transition depends on frame time or scene state.
-
-## Task M1C - Card Instances and Piles
-
-Implement runtime card instances with owner ID, definition ID, pile, base cost, current cost modifiers, tags, and generated/combat-scoped flags.
-
-Piles:
-
-- draw;
-- hand;
-- discard;
-- Graveyard;
-- resolving.
-
-Rules:
-
-- draw to hand target 5;
-- max hand 10;
-- retained cards count toward target;
-- reshuffle discard only when draw pile cannot satisfy draw request.
-
-## Task M1D - Mana and Card Play
-
-Implement:
-
-- base max Mana 6;
-- final cost minimum 0;
-- validation for phase, hand location, owner, target, cost, and card-specific preconditions;
-- no partial mutation on rejected command;
-- hover/selection/drag/armed/target-selection presentation state is not represented as authoritative combat mutation;
-- a `PlayCard` command is submitted only after all required target choices are complete.
-
-## Task M1E - Damage, Shield, and Healing
-
-Implement:
-
-- shared party HP;
-- ordinary party Shield;
-- enemy HP/Shield;
-- generic owner stat lookup and formula evaluator foundation;
-- owner-Attack Strike damage and owner-Defense Shield gain;
-- healing capped by max HP;
-- HP-loss cost distinction from damage;
-- Atomic Stop terminal checks after damage, healing, HP-loss, status, or other terminal-capable atomic effects.
-
-## Task M1F - Enemy Intent and Sequential Actions
-
-Implement:
-
-- evolve M1A's fixture initial intent into the complete visible enemy-intent lifecycle;
-- establish stable enemy slot ordering;
-- implement sequential enemy action resolution and intent regeneration after enemy end;
-- provide event metadata sufficient for the presentation adapter to animate one enemy action at a time without redefining slot order.
-
-## Task M1G - Combat Stage and Independent Actor Views
-
-Implement the permanent combat scene/presentation skeleton:
-
-- orthographic 2D combat stage using URP 2D;
-- `PartyFormationView` with four independent `CombatActorView` roots arranged diagonally on the left/lower-left;
-- `EnemyFormationView` with independent targetable enemy actor roots on the right/right-center;
-- every actor has a visual root, target/selection bounds or anchor, UI/status anchor, and VFX anchor;
-- no composite party render and no composite multi-target enemy render in the gameplay actor layer;
-- compact portrait/HUD region upper-left, fixture Domain area reserved beneath it, shared survival bar below the party, Mana lower-left, enemy intent anchor near each enemy, hand-safe area bottom-centre;
-- background is a separate decorative layer and cannot own targetability or critical labels;
-- generic fixture/fallback visuals are allowed; generated art is allowed, but M1 visuals remain explicitly non-production content unless they belong only to generic UI chrome.
-
-Layout requirements:
-
-- implement the reference information relationship from `docs/DESIGN.md` §8.10 using anchors/constraints rather than fixed transforms copied from one screenshot;
-- use one screen-space uGUI combat-canvas scale strategy for HUD/cards/target overlays; record the chosen `CanvasScaler` reference resolution/match policy in the task plan and verify it rather than relying on Editor Game-view coincidence;
-- actors and HUD remain readable at required M1 reference aspect ratios (minimum 16:9 and 16:10; include one ultrawide check);
-- the bottom-centred hand, party/shared-survival lane, enemy target lane, and End Turn control have explicit non-collision/safe-zone assertions;
-- actor overlap cannot make independently targetable enemies ambiguous;
-- no large opaque party/enemy composite panel is used to simulate actor presence;
-- the Combat Log is collapsed/minimal by default or overlays without permanently consuming the right-side enemy stage.
-
-## Task M1H - Bottom-Centred Card Fan, Drag Play Area, and Targeting
-
-Implement the production-shaped card interaction system in uGUI/Input System.
-
-Resting hand:
-
-- anchored/centred at the bottom of the combat canvas;
-- custom deterministic fan layout computes card position, rotation, overlap, scale/depth from authoritative hand order;
-- layout recomputes after hand mutations and after every drag/cancel; it never adopts accumulated dragged transforms as new rest positions;
-- hover/focus raises the card and keeps it above neighbours without changing hand order.
-
-Drag state machine:
-
-1. pointer-down captures one card interaction session;
-2. card moves in a dedicated drag/interaction layer while preserving its screen position when reparented;
-3. drag uses `RectTransformUtility.ScreenPointToLocalPointInRectangle` or an equivalent tested screen-to-local conversion against the correct drag canvas/camera rather than mixing world/screen/local coordinates;
-4. crossing the responsive `PlayArea` threshold arms the card and shows a non-colour-only indicator;
-5. moving back below the threshold disarms it;
-6. release while disarmed/cancelled animates back into the current fan;
-7. release while armed:
-   - target-complete card submits the command immediately;
-   - explicit-target card enters target-selection state with the card visibly staged above the hand and legal targets highlighted;
-8. clicking a legal target submits the complete command; Escape/right-click/cancel returns the card to hand without cost;
-9. rejected command presentation resynchronizes to authoritative hand state.
-
-Stability requirements:
-
-- only one drag/target session owns interaction at once;
-- dragged card remains within safe usable visual bounds and cannot disappear because of canvas parenting or aspect ratio;
-- no duplicate card view is created by drag/reparenting;
-- no pointer release below the Play Area submits a command;
-- no armed explicit-target card consumes Mana before target selection/engine acceptance;
-- click and keyboard flows reach the same interaction states without requiring drag.
-
-## Task M1I - Initial Sequential Presentation Adapter
-
-Implement:
-
-- `GameEvent -> PresentationToken` mapping for M1 events;
-- actor lookup by stable runtime instance ID;
-- fixture/fallback token bindings for card play, owner act acknowledgement, damage, Shield gain, enemy action, hit reaction, victory, and defeat;
-- simple idle/act/hit/return transforms/Animator clips sufficient to prove independent actors;
-- presentation lock and completion signalling;
-- animation speed and reduced-motion hooks at a basic level;
-- no authoritative state mutation in presentation.
-
-Add agent-facing development commands where useful:
-
-- `bloom.load-combat-fixture`;
-- `bloom.reset-combat-fixture`;
-- `bloom.dump-combat-state`;
-- `bloom.validate-combat-layout`.
-
-## Task M1J - Golden Combat Replay and Play Mode Interaction Gate
-
-Implement replay fixture support:
-
-- initial state;
-- seed/RNG streams;
-- command list;
-- semantic event trace;
-- final checksum;
-- Atomic Stop terminal timing evidence.
-
-Play Mode coverage must include:
-
-- five-card fan centring;
-- repeated hover/drag/cancel cycles with no drift;
-- drag above threshold then back below and release -> no play;
-- armed target-complete release -> accepted play;
-- armed explicit-target release -> target-selection state -> target click -> accepted play;
-- target-selection cancel -> no mutation;
-- card view remains in usable bounds at 16:9, 16:10, and one ultrawide reference resolution/aspect;
-- independent enemy target selection and sequential enemy action presentation.
-
-**M1 exit criteria:**
-
-- one complete combat can be played through the real Unity combat scene;
-- the same combat can be reproduced headlessly/Edit Mode from the same registry-derived setup;
-- every runtime card has a valid owner character instance;
-- Strike and Shield resolve from the owning fixture character's stats;
-- changing fixture definitions requires no engine or UI edit;
-- rejected commands and cancelled drag/target sessions consume no RNG and emit no gameplay events;
-- repeated interaction cannot drift/fan cards off-screen or submit unintended plays;
-- party members and targetable enemies are independently addressable actor views;
-- no production character definition or Domain mechanic is implemented.
-
-# PHASE M2 - One Character Per Domain
-
-## M2 Goal
-
-Implement Mara, Thalassa, Sephira, and Azael as schema-authored content using generic engine operations.
-
-M1 already owns generic lineup construction, runtime ownership, shared HP construction, owner stat lookup, and basic owner-scaled Strike/Shield formulas. M2 replaces the runtime fixture party and adds production starter definitions, Domain resources, passives, ultimates, Transcend, generated cards, statuses, and Domain presentation.
-
-## Task M2A - Production Character Schema and Decision Lock
-
-DD-02, DD-03, and DD-13 are approved. M2A now defines the production schema/content contract before any production character enters normal runtime registries.
-
-Complete and validate the production contract for:
-
-- character identity, Domain, acquisition, stats, passive, ultimate, Transcend, five-card set, and generated cards;
-- typed formula and effect-operation references required by the starter kits;
-- stable character/card IDs, content versions, cross-references, and runtime ownership;
-- apparent adult age band, gameplay-scale silhouette, costume structure, palette, concrete material/anatomy cues, horror motif, pose language, content warnings, and portrait/combat-sprite/ultimate-VFX references;
-- explicit review/readiness status for presentation fields; generated art is permitted and is not automatically placeholder content.
-- logical presentation asset IDs that resolve through the Unity presentation catalog rather than direct gameplay references to prefab/filename paths.
-- expand the M0 presentation asset catalogue and Editor validation for the production reference kinds required here: portrait, combat-sprite, and Ultimate-VFX bindings; retain generic fallback bindings and keep deterministic content limited to logical IDs.
-
-No production character may enter the normal registry before this contract and its gates pass.
-
-## Task M2B - Domain Resource Engine
-
-Implement:
-
-- Flesh Embryo;
-- Abyss Tentacles/Potency;
-- Spirit Essence;
-- Void rule modifiers and control/economy hooks.
-
-Resources persist/reset according to `docs/DESIGN.md`.
-
-Represent Domain automatic effects and modifiers through generic typed operations. Do not special-case a production character when initializing, previewing, suppressing, or resolving a Domain resource effect.
-
-## Task M2C - Flesh / Mara
-
-Implement generic operations required by Mara:
-
-- build Embryo;
-- enhanced branch with resource requirement;
-- consume Embryo only when enhanced branch resolves;
-- Bleed;
-- healing from passive;
-- generated card in hand.
-
-Content definitions:
-
-- Mara stats;
-- passive;
-- ultimate;
-- Transcend;
-- five-card set;
-- `Graft: Hepatic`.
-
-## Task M2D - Abyss / Thalassa
-
-Implement:
-
-- add Tentacles;
-- add Potency;
-- automatic ordinary player-end volley;
-- immediate volley;
-- overflow targeting by lowest current HP;
-- Drown.
-
-The launch Abyss implementation must remain the simple Tentacles/Potency engine in `docs/DESIGN.md`. Do not implement run-persistent Sacrifice, Tide Aspects, Womb-Sea replacement, or per-hit Tentacle reactions during M2; keep event/source metadata sufficient for a later DD-22 follow-up task to add those systems generically.
-
-Content definitions:
-
-- Thalassa stats;
-- passive;
-- ultimate;
-- Transcend;
-- five-card set;
-- `Undertow`.
-
-## Task M2E - Spirit / Sephira
-
-Implement:
-
-- Essence;
-- Retain;
-- Ritual held-cost reduction at ordinary cleanup;
-- held-cost reset when leaving hand;
-- Essence-scaling formulas.
-
-Content definitions:
-
-- Sephira stats;
-- passive;
-- ultimate;
-- Transcend;
-- five-card set;
-- `Kyrie`.
-
-## Task M2F - Void / Azael
-
-Implement:
-
-- Mana Debt;
-- Threshold Mana;
-- Delay;
-- Falter conversion under Control Resistance;
-- choose up to two cards in hand and set cost to 0 for current action phase or until leaving hand;
-- Azael ultimate `Still the Hinge`.
-
-Forbidden:
-
-- no invisible queued actions.
-
-Content definitions:
-
-- Azael stats;
-- passive;
-- ultimate;
-- Transcend;
-- five-card set;
-- `Lag`.
-
-## Task M2G - Transcend and Ultimates
-
-Implement:
-
-- owner ultimate gauge;
-- gauge cap;
-- once-per-combat Transcend flag;
-- Graveyard movement;
-- Transcended ultimate substitution;
-- generated combat-scoped cards.
-
-## Task M2H - Four-Domain Integration UI and Starter Actor Binding
-
-Implement:
-
-- Domain helper in the reserved upper-left party-resource area;
-- owner badges on cards;
-- resource counters;
-- establish the minimal authoritative, side-effect-free evaluator for target/resource previews, reusing command validation and calculation helpers without mutating state or consuming live RNG;
-- render target/resource previews from that evaluator rather than reproducing formulas in UI code;
-- ultimate readiness UI;
-- bind Mara, Thalassa, Sephira, and Azael to independent production actor views through logical asset references resolved by the M0F `PresentationAssetCatalog`;
-- generated/reviewed portraits and combat art may be used immediately when available; generated provenance does not downgrade them to placeholder status;
-- basic idle/act/hit/return presentation for each starter character using generic token/actor contracts, not character-ID branches;
-- Domain-resource changes animate through presentation tokens without delaying or altering authoritative state.
-
-## Task M2I - Production Starter Cutover and Fixture Retirement
-
-Implement:
-
-- switch normal runtime content sources to Mara, Thalassa, Sephira, and Azael;
-- remove M1 fixture characters and cards from app/runtime bundles, developer-facing registries, and selectable developer profiles;
-- retain only minimal fixture equivalents under dedicated `GameContent/fixtures` / test sources where production-independent regression coverage is valuable;
-- regenerate or replace M1 golden combat evidence if its content source or canonical trace changes, without weakening deterministic assertions;
-- reject fixture character/card IDs from production registries, normal application startup/runtime state, and payloads that exist through M2;
-- leave persisted-profile, save, and active-run payload rejection/migration validation introduced by M4 to M4A/M4B/M4F;
-- add release-oriented scans proving normal application startup cannot load the retired M1 fixture party.
-
-**M2 exit criteria:**
-
-- starter party plays through combat using all four Domain engines through the same M1 actor/card/presentation architecture;
-- no production character-specific engine/UI branches;
-- all starter content loads from schemas;
-- the application and production-facing registries contain no M1 fixture character or card definitions;
-- generic combat regression tests remain independent of production balance tuning.
+M0 is not re-planned. Where the audit finds a gap, it is carried as a Refactor or Discard item in the re-baseline task list, not as a new M0 task in this plan.
 
 ---
 
-# PHASE M3 - Minimal Labyrinth and Run Loop
+### 15. M1 — Combat Foundation + Feel (re-baselined)
 
-## M3 Goal
+#### 15.1 Goal
 
-Implement map traversal, canonical temptation loop, finite Obols, persistent Shops, and a minimal boss route using isolated validated non-production run content.
+Prove the permanent combat presentation architecture with a non-production fixture party: independent actors, anchored battlefield, bottom-centred deterministic fan, drag/Play-Area interaction, explicit targeting, and ordered event-to-presentation sequencing — and make that surface **feel and behave correctly** before anything is built on it.
 
-## Task M3A - Non-Production Run Content Contract
+#### 15.2 Entry criteria
 
-Define an isolated validated development content source containing:
+- Task 0 audit complete; M0 evidenced.
+- The M1 Feel & Stability Pass (§12) is either folded into this milestone's execution or completed immediately before it; M1 does not exit without it.
 
-- one exact-four production starter lineup reference;
-- one normal combat reward table and deterministic reward grant;
-- one premium Shop offer and one purchasable keepsake;
-- one Symptom with an explicit owner-assignment rule;
-- one Boss encounter reference;
-- the minimum node/content-slot references needed by the canonical temptation loop.
+#### 15.3 Work clusters
 
-Rules:
+- **M1-Setup** — fixture party of four, owner-scaled Strike/Shield each, fixture enemy and encounter, generic combat setup from the validated fixture registry. Brief.
+- **M1-State** — combat state machine, piles, hand target/maximum, Mana, damage/Shield/healing, Atomic Stop, enemy intents and sequential actions. Brief.
+- **M1-Stage** — combat scene, `PartyFormationView`/`EnemyFormationView` with independent actor roots, anchored layout per DESIGN.md §8.10, aspect-ratio safe zones. Brief.
+- **M1-Hand** — bottom-centred fan, hover rise, upward drag, responsive Play Area threshold, disarm on return, release-to-cast, explicit target-selection, click/keyboard parity (DD-28). Brief, but the drag system is permanently flagged for acceptance under §7.5 given its history.
+- **M1-Presenter** — event→presentation-token adapter, actor lookup by stable runtime ID, fixture fallback animations, presentation lock, basic reduced-motion hooks. Brief.
+- **M1-Gate** — golden combat replay + Play Mode interaction coverage + the §12 feel/stability pass. Full task plan (milestone gate).
 
-- values and quantities are non-production fixtures and do not resolve DD-10;
-- definitions use explicit non-production markers and may appear only in M3/M4 development registries and development saves;
-- fixture-bearing saves are not release-compatible and must be migrated, invalidated, or retained only as test fixtures during the M6 cutover;
-- engine/UI code cannot branch on fixture IDs;
-- M6 replaces these runtime fixtures with production content while preserving only isolated test equivalents.
+#### 15.4 Invariants carried
 
-## Task M3B - Axial Hex, Node State, and Edge Connectivity Model
+- Fixtures are data in an isolated namespace; no production character, Domain mechanic, or hardcoded fixture ID.
+- Changing fixture stats or card values requires no engine or UI edit.
+- Hover/drag/arming/target-selection never mutate authoritative state or consume RNG before acceptance.
+- Repeated interaction cannot drift, lose cards off-screen, or submit unintended plays.
 
-Implement:
+#### 15.5 Exit
 
-- axial coordinates;
-- node instance IDs;
-- edge instance IDs;
-- traversal edges as connectivity/topology only;
-- Collapsing Node lifecycle state: `intact`, `occupied/armed`, and `collapsed`;
-- current map position.
-
-Rules:
-
-- nodes own player-facing content, consequences, lifecycle state, previews, and one-time resolution rules;
-- edges own connected/unconnected, traversable/blocked, motif anchors, pathfinding, and validation structure;
-- M3 Collapsing Nodes are travel-only bypass nodes, not hazards on traversal edges;
-- entering a Collapsing Node does not collapse it;
-- accepted movement away from a Collapsing Node collapses it regardless of destination;
-- rejected or cancelled movement leaves the node intact and consumes no state or RNG;
-- save/reload while standing on an intact Collapsing Node preserves the occupied/armed state.
-
-## Task M3C - Motif Content Schemas
-
-Implement non-production motif schemas and sample motifs for:
-
-- motif ID/version;
-- local motif node keys and local axial coordinates;
-- node kinds and validated content slot references;
-- connectivity-only internal edges;
-- anchors;
-- role tags;
-- lifecycle/modifier constraints;
-- stable instance ID derivation from motif instance ID plus local node/edge key.
-
-M3 motif placement is translation-only. Arbitrary rotation and reflection are deferred to M7 unless a later approved task explicitly scopes them.
-
-Extend the M3 fixture content contract with explicit non-production `fixture.m3.*` Normal Combat and Boss encounter references before M3E can launch real map combat. These references remain fixture-only and do not create release enemy, encounter, or Boss content.
-
-Create sample Start, spine, side loop, shop loop, and boss approach motifs.
-
-## Task M3D - Stitching and Validation
-
-Implement seeded motif placement with bounded deterministic backtracking.
-
-RNG ownership:
-
-- `map.layout` drives motif choice, placement order, and backtracking choices;
-- `map.content` is used only when selecting among content-slot variants;
-- `map.nodeModifiers` is used only for node-owned modifier or lifecycle variants;
-- failed stitching returns deterministic diagnostics instead of silently falling back to hand-authored topology.
-
-Validation:
-
-- no overlap;
-- physical adjacency;
-- Start reaches Boss;
-- node consequences cannot be authored on edges;
-- Collapsing Node use cannot orphan the Boss route;
-- side loops have distinct gates;
-- side loops that claim Shop revisitability remain revisitable after every legal sequence of Collapsing Node use and Symptom resolution;
-- M3 Collapsing Nodes are degree-2 gate/bypass nodes by default;
-- node distribution bounds;
-- legal Collapsing Node/Symptom route states are enumerated, not checked only as a static graph;
-- a canonical safe-path fixture/topology matches the behavior shown in `plans/reference/collapsing-node-safe-path-reference.png`.
-- the canonical safe-path fixture satisfies DD-24's textual topology and behavioral invariants regardless of image availability.
-- when the reference image is available, record and pass its separate visual topology comparison; when it is absent, report only that image-dependent comparison as blocked and do not invent its visual composition.
-
-## Task M3E - Node Resolution
-
-Implement first-pass movement and node-entry resolution for:
-
-- Travel;
-- Collapsing Node travel and collapse-on-departure;
-- Normal Combat;
-- Shop;
-- Symptom;
-- Boss.
-
-Destination previews and confirmations must resolve before departure collapse commits. Previewing a route from a Collapsing Node shows the impending collapse but does not mutate state; accepted movement collapses the prior node before or alongside the destination consequence without ever stranding the party on a collapsed node.
-
-M3E owns movement preview, accepted movement, destination confirmation, Collapsing Node departure collapse, first-pass visit/spent/cleared state, and combat launch from explicit non-production Normal/Boss encounter references.
-
-M3E may create pending node interactions for Shop, Symptom, and reward-bearing combat results, but it must not grant Obols, seed Shop stock, sell Shop items, add keepsakes, add Symptom effects, or claim rewards. Those economy and transaction commits belong to M3F.
-
-M3 movement resolves destination node consequences and prior-node lifecycle effects only. Edges may block or permit movement, but they must not own rewards, costs, Symptoms, Shops, Events, Corrupted effects, or other run consequences.
-
-Later node families remain absent until their implementing milestone; do not reserve speculative runtime payloads.
-
-## Task M3F - Obols, Shop State, and Reward Transactions
-
-Implement:
-
-- run-scoped Obols starting at zero;
-- fixed M3 fixture reward grants after Normal Combat victory;
-- first-clear reward claiming and no-repeat reward state;
-- seeded Shop stock and first-visit reveal state;
-- prices, affordability, purchase, and sold-out state;
-- premium item can be unaffordable on first visit;
-- keepsake acquisition as a no-op runtime fixture item;
-- Symptom acceptance as an explicit M3 ledger/deck-pressure marker while the fixture runtime effect remains placeholder;
-- generic validated reward selection and grant transactions;
-- rejected purchases or reward claims consume no currency, item, state, or RNG;
-- rejected Symptom interactions consume no state or RNG;
-- non-production reward quantities loaded from the M3A fixture source.
-
-## Task M3G - Unity 2D Map UI
-
-Implement a derived Unity 2D map renderer:
-
-- individual node views at engine-provided flat-top axial positions;
-- connector/edge views generated only from authoritative engine edges;
-- current node;
-- reachable nodes;
-- spent nodes;
-- collapsed Collapsing Nodes;
-- selected node preview;
-- destination node consequence, prior-node lifecycle, and connectivity preview.
-
-The renderer may use SpriteRenderer, LineRenderer, generated mesh, Grid/Tilemap helpers, or equivalent Unity 2D primitives, but those primitives never own traversal rules. The map UI consumes authoritative reachability and preview output and must not duplicate collapse timing, Shop state, reward state, or node-consequence logic.
-
-Collapsed nodes remain visible as disabled, ruined, faded, locked-out, or equivalent. Icon, label, texture, tooltip, or shape treatment must carry the meaning so the state is not colour-only.
-
-## Task M3H - Temptation Loop E2E
-
-Implement E2E scenario:
-
-1. discover unaffordable Shop item;
-2. leave through route;
-3. earn Obols;
-4. choose between accepting the Symptom route or spending the Collapsing Node bypass;
-5. return;
-6. purchase item;
-7. reach Boss.
-
-The E2E must cover DD-24's textual canonical safe-path topology and behavior: the Collapsing-first route enters without immediate mutation, accepted departure collapses the bypass, and a later Shop return uses the once-triggered Symptom route; the Symptom-first route preserves the intact Collapsing Node until later departure. Preview/cancel/rejection paths preserve topology, lifecycle state, consequences, and RNG.
-
-When `plans/reference/collapsing-node-safe-path-reference.png` is available, the E2E also records and passes the required visual topology comparison. If it remains absent, report only that image-dependent comparison as blocked; do not infer or recreate its visual composition.
-
-The primary E2E covers the Collapsing-first route. Engine or integration tests must also cover the Symptom-first route plus preview/cancel no-mutation cases for Symptom or Boss confirmation while standing on a Collapsing Node.
-
-**M3 exit criteria:**
-
-- canonical temptation loop is playable and deterministic from seed;
-- map, Shop, node, reward, and mutation state are canonically serializable for M4 without implementing repository save/reload in M3;
-- no production reward quantity or M3 fixture ID is hardcoded in engine or UI code.
+- One complete deterministic combat playable through the real scene and reproducible headlessly.
+- Every runtime card has a valid owner; Strike/Shield resolve from owner stats.
+- **Stability gate** (§12.5) passes as test evidence.
+- **Feel gate** (§12.4) passes as human interaction evidence, benchmarked against Gloomdrawn.
+- The M1-D01-era harness, if retained, runs only as this milestone's gate, never as a per-task blocker (§11.4).
 
 ---
 
-# PHASE M4 - Run Completion and Persistence
+### 16. M2 — First Playable Slice + Feel Gate
 
-## M4 Goal
+#### 16.1 Goal
 
-Complete run lifecycle and persistent local profile inventory for systems that exist through M4. Do not reserve empty banner, Trial, equipment, profile-level, duplicate, or progression sections for later milestones.
+Replace the fixture party with the production starter four — Mara, Thalassa, Sephira, Azael — implementing all four Domain engines, ultimates, Transcend, generated cards, and statuses through generic operations, and bind real art through the presentation catalog. M2's exit is the first combat that is playable, watchable, and feels like the reference.
 
-## Task M4A - Canonical Run Save
+#### 16.2 Entry criteria
 
-Save:
+- M1 exit evidenced (including the feel/stability gate).
+- DD-02, DD-03, DD-13 approved (they are). No production character enters a registry before M2-Schema passes (Content Readiness Chain stage 1).
 
-- run seed and difficulty;
-- RNG streams;
-- party snapshot;
-- map graph/mutations;
-- Shop state;
-- run deck/card instances;
-- current HP;
-- Obols;
-- queued bankable rewards.
+#### 16.3 Work clusters
 
-Reject or explicitly migrate persisted active-run payloads that contain retired M1 fixture character/card IDs; do not silently treat them as production content.
+- **M2-Schema** — production character/card schema and content-format lock; presentation-catalog expansion for portrait/combat-sprite/ultimate-VFX references with generic fallbacks. Full task plan (schema lock).
+- **M2-Domains** — Flesh Embryo, Abyss Tentacles/Potency + automatic and immediate volleys, Spirit Essence/Ritual, Void economy/control; all as generic typed operations. Brief.
+- **M2-Starters** — the four starter kits as schema-authored content plus the generic operations they require. Brief per character pair, or one brief; no per-character task files required.
+- **M2-Transcend** — ultimate gauges, once-per-combat Transcend, Graveyard, generated combat-scoped cards. Brief.
+- **M2-Preview** — the minimal authoritative, side-effect-free evaluator for target/resource previews (DESIGN.md §15.5). Brief.
+- **M2-Bind** — bind starters to independent actor views via logical asset references; generated/reviewed art permitted immediately (DD-29); basic idle/act/hit/return via generic token contracts. Brief.
+- **M2-Cutover** — switch runtime content to the starters; retire M1 fixtures from app/runtime bundles and developer registries; release scan proving normal startup cannot load them. Full task plan (registry/save-adjacent impact).
 
-## Task M4B - Profile Persistence
+#### 16.4 Invariants carried
 
-Persist:
+- No production character-specific engine or UI branches; Domain automatic effects are typed operations.
+- Launch Abyss stays the simple Tentacles/Potency engine (DD-22 guardrail); no self-debt, aspect, or per-hit reaction systems.
+- Launch M2 does not implement runtime copy or hidden-zone selection (DD-23 guardrail).
 
-- profile ID/name;
-- owned production character IDs;
-- saved parties;
-- generic validated inventory quantities for reward families implemented through M4;
-- reward ledger and run history needed to audit banking/finalization.
+#### 16.5 Exit
 
-Reject or explicitly migrate persisted profile payloads that contain retired M1 fixture character/card IDs.
-
-Later M8, M8T, and M8X profile sections require explicit save-schema changes, migrations, and compatibility tests when those systems become live.
-
-## Task M4C - Reward Banking
-
-Bank:
-
-- declared profile-scoped rewards from validated M3/M4 fixture tables;
-- generic inventory quantities and reward-ledger entries transactionally.
-
-Never bank:
-
-- Obols;
-- run cards;
-- run keepsakes;
-- Symptoms/Curses;
-- run HP/map state after finalization.
-
-## Task M4D - Save/Resume UX
-
-Expose the approved DD-04 checkpoints only:
-
-- map movement completion;
-- node consequence commit;
-- Shop purchase;
-- reward choice;
-- stable fully resolved combat-action boundary.
-
-Do not expose recovery from mid-resolution, mid-animation, or UI interaction/drag/target-selection state.
-
-## Task M4E - Run Finalization
-
-Implement:
-
-- victory;
-- defeat;
-- abandon confirmation;
-- run history entry;
-- active run clearing/finalization.
-
-## Task M4F - Persistence E2E
-
-E2E:
-
-- create profile;
-- start run;
-- save/reload;
-- complete run;
-- verify profile inventory mutation;
-- verify Obols did not persist.
-- reject or explicitly migrate persisted profile, save, and active-run payloads containing retired M1 fixture character/card IDs.
-
-**M4 exit criteria:**
-
-- profile and active run survive reload with deterministic state intact;
-- the save contains no speculative banner, Trial, equipment, profile-level, duplicate, or unused progression payloads;
-- production reward quantities remain gated by DD-10.
+- Starter party plays one combat exercising all four Domain engines through the M1 actor/card/presentation architecture.
+- **Feel gate:** the starter combat is human-verified against the Gloomdrawn reference bar; differences are deliberate improvements.
+- M1 fixture characters/cards exist only in isolated test sources; production registries contain no fixture IDs.
+- Real or generated production-capable art is bound through the catalog for the starters.
 
 ---
 
-# PHASE M5 - Full Launch Character Roster
+### 17. M3 — Minimal Labyrinth
 
-## M5 Goal
+#### 17.1 Goal
 
-Implement remaining launch characters, roster/party UI, and approved starter onboarding.
+Implement the freely traversable Labyrinth: axial hex map, node-primary topology, canonical temptation loop, Collapsing Node lifecycle, persistent Shops, finite Obols, and a **fixture boss** reference that will close the first winnable run in M4.
 
-## Task M5A - Launch Roster Schema Completion and Validation
+#### 17.2 Entry criteria
 
-Extend the production character contract established in M2A; do not create a parallel character schema.
+- M2 exit evidenced.
+- DD-24 and DD-25 approved (they are). M3 run content is authored as isolated non-production fixtures (stage 2) before any M3 system consumes it.
 
-Validate:
+#### 17.3 Work clusters
 
-- all eight characters;
-- 40 starting cards;
-- generated Transcend cards;
-- passives;
-- ultimates;
-- apparent adult age band and gameplay-scale silhouette;
-- costume structure, palette, concrete material/anatomy cues, horror motif, and pose language;
-- content warning tags;
-- portrait, combat-sprite, and ultimate-VFX references;
-- placeholder/provenance/review status for presentation fields that are not release-ready.
+- **M3-RunContent** — isolated validated run-content contract: starter lineup reference, normal-combat reward table, premium Shop offer and keepsake, Symptom with owner-assignment rule, **Boss encounter reference**, and the node/content slots the temptation loop needs. Full task plan (content-family lock for run content).
+- **M3-MapModel** — axial coordinates, node/edge instance IDs, connectivity-only edges, Collapsing Node lifecycle (`intact`/`occupied`/`collapsed`), current position. Brief.
+- **M3-Motifs** — motif schema and sample Start/spine/side-loop/shop-loop/boss-approach motifs; translation-only placement. Brief.
+- **M3-Stitch** — seeded motif placement with bounded backtracking; `map.layout` / `map.content` / `map.nodeModifiers` stream discipline; full topology/reachability/economy validation. Brief.
+- **M3-Nodes** — movement and first-pass resolution for Travel, Collapsing Node, Normal Combat, Shop, Symptom, Boss; destination preview/confirmation before departure-collapse commits. Brief.
+- **M3-Economy** — run-scoped Obols, first-clear rewards, seeded Shop stock/reveal/sold-out, purchase and rejected-transaction invariants, Symptom ledger marker. Brief.
+- **M3-MapUI** — derived 2D map renderer consuming authoritative reachability/preview output; collapsed nodes readable without colour alone. Brief.
+- **M3-Loop** — temptation-loop E2E covering Collapsing-first and Symptom-first routes plus preview/cancel no-mutation. Full task plan (milestone-relevant gate).
 
-## Task M5B - Venelis
+#### 17.4 Invariants carried
 
-Implement generic operations for:
+- Nodes own consequences; edges own connectivity. No edge-authored rewards, costs, Symptoms, Shops, or events.
+- Collapsing Nodes collapse only after accepted departure; preview/cancel/reject consumes no state or RNG; save preserves occupied state.
+- Boss reachability survives every legal Collapsing Node/Symptom sequence.
+- No production reward quantity or fixture ID hardcoded.
 
-- nonlethal HP-loss costs;
-- scheduled Maws at ordinary player end;
-- area Flesh spender payoff.
+#### 17.5 Exit
 
-## Task M5C - Nyxalia
-
-Implement generic operations for:
-
-- first Abyss card discount each ordinary player action phase;
-- end-phase volley damage modifier;
-- Tentacle duplication cap.
-
-## Task M5D - Kibane
-
-Implement:
-
-- Spirit exception that consumes Essence;
-- Stun;
-- ignore ordinary Shield;
-- high-Essence payoff.
-
-## Task M5E - Mira Nox
-
-Implement:
-
-- Vulnerable;
-- Weak;
-- Doom;
-- removable positive status duration removal;
-- unremovable/permanent trait protection.
-
-## Task M5F - Roster and Party Screens
-
-Implement:
-
-- owned/unowned roster;
-- character detail;
-- stat/card/passive/ultimate display;
-- exact-four party builder;
-- party order persistence.
-
-## Task M5G - Starter and Developer Profiles
-
-Implement:
-
-- production starter: Mara, Thalassa, Sephira, Azael;
-- banner-eligible metadata for Venelis, Nyxalia, Kibane, and Mira Nox;
-- development profile owns all eight.
-
-M5 does not assemble a versioned banner pool. M8 consumes banner-eligible production metadata when its banner schema and decisions are locked.
-
-## Task M5H - Starter Onboarding
-
-Implement the DD-09-approved, schema-authored onboarding sequence after M4 profile persistence and M5G starter-profile prerequisites exist:
-
-- one focused teaching beat each for Flesh, Abyss, Spirit, and Void using curated starter cards and encounters;
-- a final complete starter-party combat;
-- explicit tutorial completion and one-time reward state with compatible profile persistence handling;
-- validation that tutorial content resolves only starter-party cards, valid curated encounters, and approved reward references;
-- first-run entry without gacha setup after onboarding completes.
-
-Do not introduce banner, Trial, equipment, duplicate, or other future progression payloads while recording tutorial state.
-
-**M5 exit criteria:**
-
-- all eight launch characters load from content and play without production hardcoding.
-- the approved starter onboarding sequence completes with the correct four-character starter party and persists only its live tutorial/reward state.
+- The canonical temptation loop is playable and deterministic from seed.
+- The fixture boss exists in the isolated registry and is reachable as the run's terminal node.
+- Map, Shop, node, reward, and mutation state are canonically serializable for M4.
 
 ---
 
-# PHASE M6 - Encounters, Boss, Rewards, and Node Breadth
+### 18. M4 — First Winnable Run
 
-## M6 Goal
+#### 18.1 Goal
 
-Broaden content systems beyond the minimal loop and replace the M3 runtime fixture catalog. DD-21 is approved: every release-quality enemy, event, Symptom, Curse, keepsake, and Boss brief must translate Bloom/Domain identity into concrete 2D materials, silhouette or anatomy changes, behavior or animation tells, and gameplay-readable consequences.
+Close the run lifecycle and add local persistence so the project reaches its first **winnable, saveable, resumable run**: start, traverse, fight the fixture boss, win, bank rewards, and resume correctly after closing the game. This is the project's first complete play loop and its most important early playtesting surface.
 
-## Task M6A - Enemy and Intent Framework Expansion
+#### 18.2 Entry criteria
 
-Implement enemy schema fields:
+- M3 exit evidenced, including the fixture boss and serializable run state.
+- DD-04 approved (it is). Persistence exposes only the approved checkpoints.
 
-- HP/Shield;
-- intent deck/state machine;
-- targeting;
-- formulas;
-- traits;
-- Control Resistance;
-- phase hooks;
-- gameplay-scale silhouette and size class;
-- stage footprint, readable target bounds, target marker anchor, HP/status/intent label anchors, and optional formation role;
-- concrete surface/material and anatomy changes;
-- Domain refraction cues;
-- idle, attack, hit, and telegraph requirements;
-- visible horror reveal and content warnings;
-- optional Bloom lifecycle stage as guidance, never a required mechanic;
-- asset provenance and review status.
+#### 18.3 Work clusters
 
-## Task M6B - Normal and Elite Encounter Pools
+- **M4-Save** — canonical active-run save: seed/difficulty, RNG streams, party snapshot, map/mutations, Shop state, run deck/card instances, current HP, Obols, queued rewards; rejection or explicit migration of retired-fixture payloads. Full task plan (save-affecting).
+- **M4-Profile** — profile persistence for systems live through M4: ID/name, owned characters, saved parties, generic inventory quantities, reward ledger, run history. Full task plan (save-affecting).
+- **M4-Banking** — transactional banking of declared profile rewards; never bank Obols, run cards, keepsakes, Symptoms/Curses, or run HP/map state. Brief.
+- **M4-Resume** — save/resume UX exposing DD-04 checkpoints only; no mid-resolution, mid-animation, or interaction-state recovery. Brief.
+- **M4-Finalize** — victory, defeat, abandon confirmation, run history, active-run clearing. Brief.
+- **M4-Gate** — persistence E2E plus the first-winnable-run gate. Full task plan (milestone gate).
 
-Implement validated encounter tables with:
+#### 18.4 The first-winnable-run gate
 
-- biome/depth tags;
-- anti-repeat constraints;
-- reward tier;
-- no secret party hard-countering;
-- concrete environment/material brief and readable enemy grouping at combat scale;
-- no independently targetable enemy grouping that creates ambiguous target bounds, labels, or focus targets.
+A human plays, on the ordinary runtime:
 
-## Task M6C - Launch Boss
+1. start a run with the starter party;
+2. traverse the Labyrinth, resolving at least one combat, one Shop visit, and one loop cost;
+3. reach and defeat the fixture boss;
+4. observe correct banking into the profile;
+5. close and resume a mid-run save with deterministic state intact.
 
-Implement:
+This gate is the visibility ratchet's first full expression (§8). It is evidenced as a played run, not as a test count.
 
-- boss phase thresholds;
-- Control Resistance;
-- telegraphed phase changes;
-- no hidden instant-kill or unexplained immunity;
-- concrete phase-by-phase silhouette/material changes and attack tells that remain visible without prose.
+#### 18.5 Invariants carried
 
-## Task M6D - Keepsake and Boon Hooks
+- The save contains no speculative banner, Trial, equipment, profile-level, duplicate, or progression payloads; M8/M8T/M8X add those later with explicit migrations.
+- Obols never persist; rejected transactions consume no currency, item, state, or RNG.
+- Retired M1 fixture IDs are rejected or explicitly migrated, never silently loaded as production state.
 
-Implement:
+#### 18.6 Exit
 
-- run-scoped keepsake definitions;
-- trigger timing;
-- typed effect operations;
-- UI status representation;
-- concrete object/material motif and icon-readability brief.
+- A run can be started, closed, resumed, completed (boss defeated), and reflected correctly in the profile.
+- The first-winnable-run gate passes as played-run evidence.
+- Production reward quantities remain gated by DD-10; M3/M4 quantities are fixtures only.
 
-## Task M6E - Rest, Event, Treasure, Symptom, and Curse Content
+### 19. M5 — Full Launch Roster
 
-Implement:
+#### 19.1 Goal
 
-- Rest options;
-- Event choice schema;
-- Treasure reward schema;
-- at least four Symptoms;
-- at least four Curses;
-- content warning metadata;
-- concrete visible material, body/object change, or environmental manifestation;
-- Domain refraction and the explicit benefit/cost of Bloom contact where relevant;
-- behavior, animation, or UI tell required to communicate the change;
-- optional lifecycle-stage guidance without making lifecycle a gameplay system.
+Complete the launch roster — Venelis, Nyxalia, Kibane, Mira Nox — plus roster/party screens and the DD-09 onboarding sequence, all through the same schema and presentation contracts proven in M2. M5 expands content breadth; it introduces no new Domain engines.
 
-## Task M6F - Reward Pool Breadth
+#### 19.2 Entry criteria
 
-Block production quantities until DD-10 is approved. Use the DD-13-approved YAML/JSON format policy for any production content authored in this phase.
+- M4 exit evidenced (persistence live, so onboarding state can persist correctly).
+- The M2A production character contract exists. M5 **extends** it; it never creates a parallel schema.
+- DD-03 approved (it is). DD-09 approved (it is).
 
-Implement:
+#### 19.3 Work clusters
 
-- card reward pools;
-- keepsake reward pools;
-- profile reward grant hooks;
-- content validation for reward references.
+- **M5-Schema** — extend the production character contract for the four remaining kits' presentation and operation needs. Brief (the schema exists; this is an extension, not a lock).
+- **M5-Operations** — the new generic engine operations the kits require: scheduled end-of-player-turn effects (Maws), non-lethal HP-loss costs, once-per-turn card discounts, the Spirit Essence-consume exception, Stun, ignore-Shield, Vulnerable/Weak/Doom, and removable-positive-status removal. Each is a **Tier 2 engine extension** and carries an Extension Brief (§5.3) before the character content that uses it is authored into a registry. This is the expansion policy working as designed.
+- **M5-Characters** — the four kits as schema-authored content composing M2/M5 operations. Brief per character; no per-character task files required.
+- **M5-Screens** — roster, character detail, and exact-four party builder with order persistence. Brief.
+- **M5-Onboarding** — the DD-09 sequence: one focused teaching beat per Domain ending in a complete starter-party combat, with one-time tutorial/reward persistence. Full task plan (save-affecting one-time flags; player-visible).
+- **M5-Profiles** — production starter profile and developer profile owning all eight. Brief.
 
-## Task M6G - Production Run Content Cutover and Fixture Retirement
+#### 19.4 Invariants carried
 
-Implement:
+- No run-persistent self-debt, party stances, Domain replacement, per-hit reactions, or copy/hidden-zone mechanics (DD-22/DD-23 guardrails).
+- Onboarding persists only its live tutorial/reward state; it reserves no banner, Trial, equipment, or duplicate payloads.
+- M5 does not assemble a versioned banner pool; M8 consumes banner-eligible metadata when its schema and decisions lock.
 
-- replace M3 runtime combat rewards, Shop offer, keepsake, Symptom, Boss, and related run-content fixtures with production schema-authored definitions;
-- remove M3 fixture definitions from app/runtime bundles, developer-facing registries, and production saves;
-- explicitly migrate or invalidate development saves that reference retired fixture IDs rather than silently loading them as production state;
-- retain minimal equivalents only under isolated testing content;
-- replace or regenerate affected deterministic fixtures without weakening assertions;
-- add release scans proving normal application startup cannot load retired M3 fixture IDs.
+#### 19.5 Exit
 
-**M6 exit criteria:**
-
-- multiple seeds generate varied playable runs with validated production content;
-- release-quality content briefs are implementable as gameplay-scale 2D assets rather than abstract prose;
-- production-facing registries and saves contain no M3 run-content fixture IDs.
+- All eight launch characters load from content and play without production hardcoding.
+- The onboarding sequence completes with the correct starter party and persists only its live state.
+- Every new generic operation has an approved Extension Brief and deterministic tests.
 
 ---
 
-# PHASE M7 - Labyrinth Generation Breadth
+### 20. M6 — Encounters, Boss, and Reward Breadth
 
-## M7 Goal
+#### 20.1 Goal
 
-Expand map variety and route-economy reporting. M7 authors semantic presentation tags for later asset work; it does not create or require literal floral map art.
+Replace the M3 fixture catalog with production run content: enemy/encounter pools, the **production phased boss** (which retires the M4 fixture boss), keepsakes, Rest/Event/Treasure nodes, Symptoms/Curses, and reward pool breadth. M6 is the content-breadth milestone that makes runs varied and closes the boss split opened in §3.3.
 
-## Task M7A - Expanded Motif Library
+#### 20.2 Entry criteria
 
-Add validated motifs for:
+- M4 and M5 exit evidenced.
+- DD-21 approved (it is) — release-quality enemy/Symptom/keepsake briefs must translate Bloom/Domain identity into concrete gameplay-scale 2D requirements.
+- DD-10 remains the gate for **production reward quantities**; M6 authors pools and references, and production quantities enter only once DD-10 is approved.
 
-- shop loops;
-- recovery loops;
-- elite branches;
-- boss approaches;
-- travel pacing;
-- presentation tags for spine/loop metaphor, connector material, landmark role, symmetry treatment, and branching treatment.
+#### 20.3 Work clusters
 
-The tags must use concrete values that M10 can map to tiles, connectors, landmarks, and effects. They may express stem, root, vein, tissue, devotional circuit, threshold, or other approved metaphors without changing topology or requiring every map to resemble a flower.
+- **M6-EnemySchema** — enemy/intent framework expansion: HP/Shield, intent decks, targeting, traits, Control Resistance, phase hooks, and presentation metadata (size class, footprint, target bounds, anchors) per DD-26. Full task plan (schema lock).
+- **M6-Encounters** — Normal/Elite pools with biome/depth tags, anti-repeat, and no secret party hard-countering. Brief.
+- **M6-Boss** — the production launch boss: phase thresholds, Control Resistance, telegraphed transitions, no hidden instant-kill or unexplained immunity. Replaces the M4 fixture boss at cutover. Brief (the boss is content composing existing operations; a Tier 2 brief only if a new generic operation is needed).
+- **M6-Keepsakes** — run-scoped keepsake definitions with typed effect operations and UI status representation. Brief.
+- **M6-Nodes** — Rest options, Event/Treasure schemas, ≥4 Symptoms, ≥4 Curses, with content-warning metadata. Brief.
+- **M6-Rewards** — card/keepsake reward pools and profile grant hooks; production quantities blocked on DD-10. Brief.
+- **M6-Cutover** — replace M3 runtime fixtures with production content; retire M3 fixture IDs from runtime bundles, registries, and saves; release scan. Full task plan (registry/save-adjacent).
 
-## Task M7B - Distribution and Difficulty Constraints
+#### 20.4 Invariants carried
 
-Implement generation constraints for:
+- Enemy placement metadata is presentation-only; it never alters authoritative slot order, targeting, or resolution (DD-26).
+- Independently targetable enemies never overlap into ambiguity.
+- Retired M3 fixtures survive only as isolated test equivalents.
 
-- combat counts;
-- Shop count;
-- Rest count;
-- Elite count;
-- Symptom/Curse exposure;
-- direct route viability.
+#### 20.5 Exit
 
-## Task M7C - Reveal and Information Rules
-
-Implement:
-
-- topology reveal;
-- node category reveal;
-- Shop reveal on first visit;
-- node consequence and lifecycle preview;
-- Symptom card preview before traversal.
-
-## Task M7D - Property and Route-Economy Reports
-
-Reports:
-
-- minimum/maximum combats;
-- possible Obol totals;
-- Shop affordability;
-- Boss reachability under Collapsing Node use;
-- node consequence exposure;
-- side-loop integrity.
-
-**M7 exit criteria:**
-
-- generator passes large-seed validation and route-economy reports are produced;
-- every production motif exposes validated presentation tags without embedding asset paths or rendering logic in map generation.
+- Multiple seeds generate varied playable runs on validated production content.
+- The first-winnable-run gate (§18.4) now passes against the production boss.
+- Production registries and saves contain no M3 run-content fixture IDs.
 
 ---
 
-# PHASE M8 - Gacha and Meta Progression
+### 21. M7 — Labyrinth Generation Breadth
 
-## M8 Goal
+#### 21.1 Goal
 
-Implement direct-pull gacha, character growth, profile cap, persistent inventory, and the extensible rarity/result-family foundation required before M8X equipment banners.
+Expand map variety and prove the generator at scale: an expanded motif library with semantic presentation tags, distribution/difficulty constraints, fog/reveal rules, and large-seed property validation plus route-economy reporting.
 
-## Task M8A - Gacha and Progression Decision Lock
+#### 21.2 Entry criteria
 
-Block production M8 implementation until DD-05, DD-06, DD-07, DD-10, DD-11, and DD-15 are approved. Use the DD-13-approved YAML/JSON format policy for production content.
+- M6 exit evidenced. DD-24/DD-25 approved (they are).
 
-Deliver:
+#### 21.3 Work clusters
 
-- exact pity table/formula;
-- featured guarantee rule;
-- first-acquisition protection;
-- exact C1-C5 and post-cap duplicate outcomes;
-- production reward quantities needed to earn and spend M8 items;
-- profile-to-character cap bands;
-- SSR/SR/R result model, result-family splits, and 10-pull guarantee precedence;
-- pre-M8X banner composition before lower-rarity weapons enter the pool;
-- explicit behavior of the 10-pull guarantee for that pre-M8X pool;
-- required audit fields.
+- **M7-Motifs** — shop/recovery/elite/boss-approach/travel motifs with concrete semantic presentation tags (spine/loop metaphor, connector material, landmark role, symmetry, branching) that M10 can map to assets. Brief.
+- **M7-Constraints** — combat/Shop/Rest/Elite counts, Symptom/Curse exposure, and direct-route viability. Brief.
+- **M7-Reveal** — topology and node-category reveal, Shop reveal on first visit, Symptom preview before traversal. Brief.
+- **M7-Reports** — property/stress validation across large seed samples; min/max combats, Obol totals, Shop affordability, boss reachability, side-loop integrity. Brief.
 
-## Task M8B - Banner and Progression Content Schema Lock
+#### 21.4 Invariants carried
 
-Implement and validate production schemas/content for:
+- Tags are data for later asset mapping; they embed no asset paths or rendering logic in generation.
+- All §3.3-era map invariants (reachability, one-time triggers, revisit safety) hold at scale.
 
-- versioned banner definitions and banner-eligible character references;
-- rates, pity, featured guarantee, first-acquisition protection, result families, and 10-pull guarantee tables;
-- character duplicate ladders and post-cap outcomes;
-- character EXP items, Domain Sigils, ascension costs, and growth/cap tables;
-- audit entry payloads and localization/display fields.
+#### 21.5 Exit
 
-No production resolver may load incomplete or provisional banner behavior.
-
-## Task M8C - Profile Save Migration and Gacha RNG State
-
-Introduce the M8 profile-save version that adds:
-
-- profile EXP and level;
-- character levels, ascensions, and duplicate progress;
-- character EXP items and Domain Sigils;
-- direct-pull inventory;
-- versioned banner pity/guarantee state;
-- gacha audit history;
-- named profile/banner RNG state required for exact continuation.
-
-Provide migration from the M4 live-only profile, reject incompatible future versions, and prove active Run state is unchanged.
-
-## Task M8D - Direct Pull Resolver
-
-Implement:
-
-- one direct pull consumed per pull;
-- no intermediary conversion resource;
-- pity state;
-- guarantee state;
-- result rarity and family categories;
-- ten-pull SR-or-better guarantee state;
-- audit log.
-
-## Task M8E - Duplicate Ladder
-
-Implement:
-
-- C1-C5 structure;
-- duplicate progress;
-- C0 viability invariant;
-- approved post-cap compensation.
-
-## Task M8F - EXP Items and Sigils
-
-Implement:
-
-- three EXP item tiers;
-- Domain Sigils;
-- every-10-level ascension gate;
-- correct Domain Sigil validation.
-
-## Task M8G - Profile Level Roster Cap
-
-Implement:
-
-- profile EXP;
-- profile level;
-- profile-to-character-level cap table;
-- cap enforcement during leveling.
-
-## Task M8H - Banner UI
-
-Implement:
-
-- direct pull count;
-- rates;
-- rarity/result-family table;
-- pity;
-- guarantee;
-- pool contents;
-- recent audit/history.
-
-## Task M8I - Meta E2E
-
-E2E:
-
-- earn direct pull;
-- pull character or other approved banner result;
-- receive duplicate or new character;
-- level with EXP item;
-- ascend with Sigil;
-- enforce profile roster cap.
-
-**M8 exit criteria:**
-
-- direct-pull loop works without any intermediary conversion resource;
-- all banner/progression behavior is schema-authored and decision-locked;
-- M8 profile saves migrate from M4 and continue profile/banner RNG exactly.
+- The generator passes large-seed validation and produces route-economy reports.
+- Every production motif exposes validated presentation tags.
 
 ---
 
-# PHASE M8T - Trials
+### 22. M8 — Gacha and Meta Progression
 
-## M8T Goal
+#### 22.1 Goal
 
-Implement direct boss challenges for targeted persistent rewards. This corresponds to the `docs/DESIGN.md` launch milestone labelled `M8B - Trials`; this plan uses `M8T` to keep task IDs unique.
+Implement the ethical gacha and meta progression: direct-pull resolution, banners, pity/guarantee, the duplicate ladder, character growth (EXP/Sigils/ascension), profile level and roster cap, and persistent inventory. This is the first milestone whose start is gated primarily by **decisions**, not code.
 
-## Task M8T-A - Trial Decision and Schema Lock
+#### 22.2 Entry criteria — the critical path
 
-Block production Trial work until DD-10 and DD-12 are approved. Use the DD-13-approved YAML/JSON format policy for Trial content.
+M8 production work is blocked until **DD-05, DD-06, DD-07, DD-10, DD-11, and DD-15** are approved. The plan treats *resolving these decisions* as the gating work: the Lead Planner drafts the decision records; the owner approves; mirrors land in `docs/DESIGN.md` before resolver work begins (§1). No production gacha content is authored, and no resolver is implemented, ahead of these gates.
 
-Implement and validate Trial definitions:
+- M5 exit evidenced (banner-eligible character metadata exists).
+- M4 persistence evidenced (profile save migration builds on it).
 
-- Trial ID;
-- reward family;
-- difficulty tiers;
-- boss/encounter reference;
-- first-clear rewards;
-- repeat rewards;
-- unlock requirements.
+#### 22.3 Work clusters
 
-## Task M8T-B - Production Trial Definitions
+- **M8-Lock** — decision and schema lock: exact pity table/formula, featured guarantee, first-acquisition protection, C1–C5 and post-cap outcomes, production reward quantities, cap bands, SSR/SR/R result model, result-family splits, 10-pull guarantee precedence, pre-M8X banner composition, audit fields. Full task plan (decision + schema lock).
+- **M8-Save** — M8 profile-save version: profile EXP/level, character progression, EXP items/Sigils, direct-pull inventory, versioned banner pity/guarantee, gacha audit history, named profile/banner RNG; migration from M4 with active-Run state unchanged. Full task plan (save-affecting).
+- **M8-Resolver** — one direct pull consumed per pull, no intermediary resource, pity/guarantee/ten-pull state, result rarity/family, audit log. Brief.
+- **M8-Ladder** — C1–C5 duplicate progression, C0 viability, approved post-cap compensation. Brief.
+- **M8-Growth** — three EXP tiers, Domain Sigils, every-10-level ascension, profile level and roster-cap enforcement. Brief.
+- **M8-UI** — banner screen showing pulls, rates, rarity/result-family table, pity, guarantee, pool contents, and recent history. Brief.
+- **M8-E2E** — earn → pull → duplicate/new → level → ascend → cap-enforce. Full task plan (milestone gate; Acceptance Engineer invoked).
 
-Implement schema-authored definitions for:
+#### 22.4 Invariants carried
 
-- Flesh, Abyss, Spirit, and Void Sigil Trials;
-- EXP Trial with three-tier character EXP rewards;
-- Money Trial with persistent general currency rewards;
-- boss/encounter references, difficulty scaling, first-clear rewards, repeat rewards, and unlocks;
-- validation that each Trial grants only its declared reward family.
+- Direct pulls only; no intermediary conversion resource; no paid path of any kind.
+- Hard pity and the 10-pull SR-or-better guarantee cannot fail; a lost 50/50 guarantees the next eligible featured result in the same pity family.
+- Pity/guarantee never expire on banner rotation.
+- Every pull is auditable and deterministically reproducible from the profile/banner RNG stream.
 
-## Task M8T-C - Trial Selection and Launch UI
+#### 22.5 Exit
 
-Implement:
-
-- Trial family list;
-- difficulty selection;
-- reward preview;
-- first-clear indicator;
-- repeat reward indicator.
-
-## Task M8T-D - Trial Save Migration and Clear Persistence
-
-Introduce the M8T profile-save version and migrate M8 profiles.
-
-Persist:
-
-- completed Trial family;
-- highest completed difficulty;
-- first-clear claimed flags;
-- repeat clear history if needed for balancing/debugging.
-
-Prove migration leaves banner state, inventory, character progression, active Run state, and RNG streams unchanged.
-
-## Task M8T-E - Trial Reward Integration
-
-Implement:
-
-- transactional first-clear and repeat reward grants;
-- reward-ledger/audit entries;
-- no active Run mutation;
-- rejected or duplicate first-clear claims consume no state, items, or RNG.
-
-## Task M8T-F - Trial E2E
-
-E2E:
-
-- select Trial;
-- choose difficulty;
-- clear boss;
-- receive targeted persistent reward;
-- verify active Run state is not mutated.
-
-**M8T exit criteria:**
-
-- player can select a Trial difficulty, clear a production Trial, and receive targeted persistent rewards;
-- M8 profiles migrate to M8T without losing banner, inventory, progression, Run, or RNG state.
+- The direct-pull loop works end-to-end with visible rates, pity, guarantee, and history.
+- All banner/progression behaviour is schema-authored and decision-locked.
+- M4→M8 migration preserves profile state and continues profile/banner RNG exactly.
 
 ---
 
-# PHASE M8X - Equipment, Profile Shop, and Inventory Expansion
+### 23. M8T — Trials
 
-## M8X Goal
+#### 23.1 Goal
 
-Implement rarity expansion, character weapons, six-slot gear sets, Profile Shop, conversion currency sinks, equipment inventory, and deterministic Run/Trial equipment snapshots after M8 and M8T are stable.
+Implement direct boss challenges with selectable difficulty tiers and targeted persistent rewards, so progression resources can be pursued deliberately. Corresponds to the design document's "M8B - Trials"; this plan uses `M8T` to keep task IDs unique.
 
-## Task M8X-A - Rarity and Equipment Schema Lock
+#### 23.2 Entry criteria
 
-Block implementation until DD-15 through DD-20 are approved, and verify the inherited DD-07 and DD-10 through DD-12 decisions needed by equipment duplicates, costs, cap bands, and Trial rewards remain approved.
+- M8 exit evidenced. M6 exit evidenced (Trial bosses reuse the production boss framework with stable Trial rulesets).
+- DD-10 and DD-12 approved.
 
-Implement content schemas for:
+#### 23.3 Work clusters
 
-- SSR/SR/R rarity and result-family tables;
-- weapon definitions, signature links, growth, ascension, duplicate bonuses, and acquisition sources;
-- gear slots, gear sets, main stat pools, substat pools, tier weights, reroll tables, and desynthesis yields;
-- Profile Shop offers and purchase limits;
-- inventory categories and lock/favorite eligibility.
+- **M8T-Lock** — Trial decision/schema lock: families, difficulty tiers, boss references, first-clear/repeat rewards, unlocks. Full task plan (decision + schema lock).
+- **M8T-Definitions** — Flesh/Abyss/Spirit/Void Sigil Trials, EXP Trial, Money Trial; each grants only its declared reward family. Brief.
+- **M8T-UI** — family list, difficulty selection, reward preview, first-clear/repeat indicators. Brief.
+- **M8T-Save** — M8T profile-save version and migration; clear history persistence. Full task plan (save-affecting).
+- **M8T-Rewards** — transactional first-clear/repeat grants; rejected or duplicate claims consume nothing. Brief.
+- **M8T-E2E** — select → difficulty → clear → targeted reward; active Run unchanged. Full task plan (milestone gate).
 
-## Task M8X-B - Equipment Save Migration and Profile RNG State
+#### 23.4 Invariants carried
 
-Introduce the M8X profile/run save versions and migrate M8T state.
+- Trials award only declared persistent categories; they never grant Obols or mutate the active Run.
+- Trial reward preview matches awarded inventory exactly.
 
-Persist:
+#### 23.5 Exit
 
-- owned weapon instances and duplicate bonuses;
-- owned gear instances;
-- equipment loadouts;
-- Profile Shop state and purchase history;
-- conversion and reroll currencies;
-- named `profile.equipment` RNG state;
-- versioned active Run/Trial equipment snapshots where applicable;
-- snapshotted combat parameters from equipment, such as maximum hand size.
-
-Prove migration preserves banner, Trial, inventory, progression, active Run, and all pre-existing RNG state exactly.
-
-## Task M8X-C - Weapon Progression and Banner Integration
-
-Implement:
-
-- one weapon slot per character;
-- weapon level and ascension commands;
-- three weapon EXP item tiers;
-- weapon ascension materials;
-- duplicate bonus +0 through +5;
-- excess/maxed duplicate conversion;
-- banner result handling for SSR/SR/R weapons without introducing a pull conversion currency;
-- generic weapon passive event hooks only when their owning gate is satisfied, such as DD-22 for Domain-resource or Ultimate-cast reactions and DD-23 for copied-card reactions.
-
-## Task M8X-D - Gear Sets, Rerolls, and Desynthesis
-
-Implement:
-
-- six gear slots per character;
-- 3-piece and 6-piece set bonus activation;
-- main stat enhancement to +12;
-- three substat slots;
-- deterministic substat rerolls using `profile.equipment` RNG;
-- desynthesis into declared reroll currency/material yields;
-- lock/favorite protection.
-
-## Task M8X-E - Profile Shop and Economy Sinks
-
-Implement:
-
-- Profile Shop content loading and stock state;
-- targeted character dupe, weapon, gear, EXP, ascension, and reroll-material offers;
-- purchases using persistent general currency and special conversion currency;
-- profile-money costs for character, weapon, and gear upgrades;
-- audit entries for irreversible shop purchases.
-
-## Task M8X-F - Equipment Inventory and Loadout UI
-
-Implement:
-
-- inventory categories for currencies, materials, weapons, and gear;
-- weapon and gear detail views;
-- lock/favorite controls;
-- equip/unequip flows from Roster and Inventory;
-- desynthesis flow with yield preview;
-- Profile Shop screen;
-- banner result display for rarity and family.
-
-## Task M8X-G - Equipment Snapshot E2E
-
-E2E:
-
-- acquire or grant weapon and gear fixtures through isolated validated test-content injection, not production catalogs or runtime registries;
-- equip one weapon and six gear pieces;
-- activate a 3-piece and 6-piece set bonus scenario;
-- reroll gear substats;
-- desynthesize eligible gear;
-- buy a targeted Profile Shop offer;
-- start a Run or Trial and verify the equipment snapshot remains stable after profile equipment changes.
-
-**M8X exit criteria:**
-
-- player can pull or acquire weapons, equip weapon and gear loadouts, upgrade equipment with persistent resources, reroll/desynth gear, purchase targeted Profile Shop items, and start a deterministic Run or Trial from a stable equipment snapshot;
-- M8T profiles and active state migrate without losing pre-existing progression, Trial, banner, inventory, Run, or RNG data.
+- A player can select a difficulty, clear a production Trial, and receive targeted persistent rewards.
+- M8→M8T migration loses no banner, inventory, progression, Run, or RNG state.
 
 ---
 
-## Post-Launch Advanced Character Package Note
+### 24. M8X — Equipment, Profile Shop, and Inventory
 
-Characters with Ismera/Ismelda-like or Thaelia-like requirements are not normal content drops.
+#### 24.1 Goal
 
-Timing guidance:
+Implement the rarity expansion, character weapons, six-slot gear sets, Profile Shop, conversion-currency sinks, equipment inventory, and deterministic Run/Trial equipment snapshots. This is the milestone that most stresses the modularity contract (§6): weapons and gear must be content-driven, and equipment effects must be generic typed operations.
 
-- simplified combat-only versions require at least M2 Domain combat, M4 persistence, and M6 production status/content breadth;
-- Thaelia-like prototypes without card copy or signature weapon can wait until M2/M6 provide Flesh, status timing, typed operations, and production content breadth;
-- banner-acquired advanced characters require M8 gacha/profile progression;
-- full versions with signature weapon reactions require M8X equipment contracts;
-- the preferred approach is a dedicated post-launch advanced-character slice under the approved DD-22 future gate, rather than embedding these rules into launch tasks.
+#### 24.2 Entry criteria
 
-Thaelia-like concepts are valid future Flesh candidates when they express Embryo acceleration, propagation, maternal possession, and pearl/cradle imagery without creating a second Embryo pool or replacing the base Flesh Domain engine. Implementation must use generic operations and content-authored hooks, never Thaelia-specific character-ID branches.
+- M8T exit evidenced.
+- **DD-15 through DD-20** approved, with inherited DD-07 and DD-10 through DD-12 re-verified. No equipment schema, save contract, or content precedes these gates.
 
-This note does not approve Sacrifice, Tide Aspects, Womb-Sea, Mother's Pearl, operation-tag resource amplification, or any future-character name. It only records the dependency shape for planning.
+#### 24.3 Work clusters
+
+- **M8X-Lock** — rarity/result-family tables; weapon definitions (signature links, growth, ascension, duplicate bonuses, acquisition); gear slots/sets/stat pools/reroll/desynthesis; Profile Shop offers; inventory categories. Full task plan (schema lock).
+- **M8X-Save** — M8X profile/run save versions; owned weapons/gear, loadouts, Shop state, conversion/reroll currencies, named `profile.equipment` RNG, versioned equipment snapshots; migration preserving all pre-existing state and RNG. Full task plan (save-affecting).
+- **M8X-Weapons** — one weapon slot, level/ascension commands, three EXP tiers, ascension materials, +0→+5 duplicates, maxed conversion, banner result handling; generic passive hooks only where their owning gate (DD-22/DD-23) is satisfied. Brief.
+- **M8X-Gear** — six slots, 3/6-piece bonuses, main-stat enhancement to +12, three substats, deterministic rerolls on `profile.equipment`, desynthesis, lock/favorite protection. Brief.
+- **M8X-Shop** — Profile Shop stock/state, targeted offers, purchases on persistent general and conversion currency, profile-money upgrade sinks, audit entries. Brief.
+- **M8X-Inventory** — categories, detail views, lock/favorite, equip/unequip, desynthesis with yield preview, Profile Shop screen, rarity/family result display. Brief.
+- **M8X-Snapshot** — acquire via isolated validated test content, equip, set bonuses, reroll, desynth, Shop purchase, and snapshot stability after profile equipment changes. Full task plan (milestone gate).
+
+#### 24.4 Invariants carried
+
+- Active Run/Trial snapshots never mutate when profile equipment changes later.
+- Weapon duplicate bonuses cap at +5; +0 weapons remain useful and are never required for standard content.
+- Conversion currency never buys direct pulls and never becomes an intermediary pull resource.
+- Rejected upgrade/reroll/desynthesis/discard/Shop commands consume no currency, items, or RNG.
+- Production equipment content never references non-production fixture IDs.
+
+#### 24.5 Exit
+
+- A player can pull/acquire weapons, equip weapon+gear loadouts, upgrade, reroll/desynth, buy targeted Shop items, and start a deterministic Run/Trial from a stable snapshot.
+- M8T→M8X migration loses no progression, Trial, banner, inventory, Run, or RNG data.
 
 ---
 
-## Post-Launch Card-Memory Package Note
+### 25. M9 — Combat UI/UX Closure
 
-Characters with Moirenne/Noema-like or Thaelia-like temporary-copy requirements are not normal content drops.
+#### 25.1 Goal
 
-Timing guidance:
+Close and polish the combat interaction and presentation systems proven in M1/M2 — final layout, production card feel, authoritative previews, formation readability, pile viewers, accessibility, and cross-aspect E2E. M9 polishes; it never replaces the M1 actor model, fan model, drag state machine, or presentation adapter (§2.8).
 
-- visible-zone or stored-snapshot copy systems may be simpler than hidden-zone selection, but both require a DD-23 follow-up implementation task before production;
-- safe hand-only copies still require DD-23 because they create runtime card instances, preserve owners and upgrade IDs, apply copy discounts, and need deterministic overflow/cleanup;
-- hidden Draw reveal/selection needs a dedicated accepted-command or pending-choice contract so rejected or cancelled commands do not leak hidden order;
-- copy-triggered signature weapon effects require M8X equipment contracts plus DD-23 generic copy events;
-- the preferred approach is a dedicated post-launch card-memory/copy slice rather than embedding these rules into launch tasks.
+#### 25.2 Entry criteria
 
-This note does not approve Pattern, Recollection, Woven Reprise, Wing cards, Foregone Hours, Last Measure, safe hand-copy Ultimates, or any future-character name. It only records the dependency shape for planning.
+- M6 exit evidenced (production enemy breadth is needed for formation readability).
+- DD-26 and DD-28 approved (they are).
+
+#### 25.3 Work clusters
+
+- **M9-Layout** — final information hierarchy and responsive battlefield constraints per DESIGN.md §8.10. Brief.
+- **M9-Interaction** — production fan/hover/drag feel, cancel/return animation, click/keyboard parity. Brief, but carries a **human feel gate** (§13.3) given the drag system's flagged history.
+- **M9-Preview** — expand the M2H authoritative evaluator to damage/Shield/resource/control-conversion/Safe-skull previews; no UI-side formula duplication. Brief.
+- **M9-Sequence** — complete event→token mapping, ordered playback across multi-effect cards, ultimates, volleys, status ticks, sequential enemies, terminal transitions; speed/skip/reduced-motion; reload behaviour. Brief.
+- **M9-Viewers** — draw (hidden order), discard, Graveyard viewers; log filters; formula detail. Brief.
+- **M9-Access** — keyboard/controller navigation, accessible labels, reduced motion, text scaling, colourblind-safe indicators, aspect matrix. Brief.
+- **M9-E2E** — production combat E2E across the interaction and formation matrix. Full task plan (milestone gate; Acceptance Engineer invoked).
+
+#### 25.4 Invariants carried
+
+- Preview and resolution share one evaluator; any mismatch is an engine/adapter defect.
+- Repeated interaction produces no drift, off-screen loss, or unintended submission.
+- The final layout preserves the authoritative/presentation separation.
+
+#### 25.5 Exit
+
+- Combat is production-usable by click, drag, and keyboard/controller where required; feel is stable across declared resolutions; enemy targets remain readable and unambiguous.
 
 ---
 
-# PHASE M9 - Production Combat UI/UX Closure
+### 26. M10 — Art, Audio, VFX, and Performance
 
-## M9 Goal
+#### 26.1 Goal
 
-Close and polish the combat interaction/presentation systems that already exist from M1/M2. DD-26 and DD-28 are approved. M9 must not replace the independent actor model, authoritative card-order model, drag Play Area state machine, or event-to-presentation architecture with unrelated shortcuts merely to obtain a different look.
+Close the production presentation catalogue, asset breadth, animation/VFX/audio, technical budgets, and visual consistency — without sacrificing readability or determinism. Generated art is already permitted and may already be release-quality; M10 is the closure and audit milestone, not the first point real art is allowed.
 
-## Task M9A - Final Combat Information Layout
+#### 26.2 Entry criteria
 
-Implement/finalize:
+- M9 exit evidenced. DD-21, DD-26, DD-29 approved (they are).
+- **DD-31 must be approved before M10-Perf evaluates performance.** No hardware class, resolution, frame-time target, memory budget, or tolerance is selected by this plan while DD-31 is open.
 
-- compact four-portrait/ultimate cluster upper-left;
-- Domain helper immediately below/adjacent to portraits;
-- party actor stage left/lower-left;
-- shared survival bar below party sprites;
-- Mana lower-left;
-- bottom-centred hand and pile controls;
-- right/right-center enemy stage with target-readable formation constraints;
-- enemy intent/status anchors;
-- collapsible Event Log that does not permanently consume battlefield space;
-- responsive safe zones for common desktop aspect ratios, including ultrawide.
+#### 26.3 Work clusters
 
-## Task M9B - Card, Ultimate, and Target Interaction Polish
+- **M10-Catalog** — finalize the logical presentation catalogue, import presets, loading/fallbacks, budgets, provenance/review/release-readiness status, and a release scan proving every required production logical asset ID resolves. Full task plan (release-affecting).
+- **M10-Characters** — portraits and independent full-body combat sprites from concrete briefs; per-asset animation method (transform layers, Animator, frame animation, 2D Animation, or approved alternative); horror reveal at gameplay scale. Brief.
+- **M10-World** — card, map, connector, landmark, Shop, Symptom, Curse, keepsake, and environment assets mapped from M7 tags; fallbacks for every required role. Brief.
+- **M10-VFXAudio** — Domain VFX families through URP 2D/Particle/Shader Graph (VFX Graph only where useful); full/reduced-motion variants; UI/combat sound and music hooks. Brief.
+- **M10-Perf** — readability, loading, and performance validation against the approved DD-31 baseline using Unity Profiler/Memory/2D Profiler. Full task plan (milestone gate).
 
-Polish the M1H system rather than reimplementing it:
+#### 26.4 Invariants carried
 
-- production fan spacing/rotation/overlap curves;
-- hover/focus scale/raise timing;
-- drag weighting/smoothing while preserving pointer fidelity;
-- clear Play Area/armed indication;
-- staged explicit-target state and legal enemy highlight;
-- cancel/return animation;
-- click fallback for every drag action;
-- keyboard card selection/confirmation/cancel;
-- target confirmation and Ultimate confirmation;
-- no card-position drift, off-screen loss, coordinate jump, or accidental command submission under repeated interaction.
+- Generated and non-generated assets are judged by identical quality/readability requirements; generation method is provenance, not placeholder status.
+- Reduced motion removes large movement and shake without removing mechanical information.
+- Asset load/import failures cannot corrupt deterministic state.
 
-## Task M9C - Authoritative Preview Layer
+#### 26.5 Exit
 
-Expand the minimal authoritative evaluator established in M2H and close production preview UX. Implement:
-
-- damage previews;
-- Shield previews;
-- resource spend previews;
-- control conversion previews;
-- Safe/skull incoming damage;
-- preview surfaces integrated into hover/selected/armed/target-selection states without duplicating formulas in UI code.
-
-## Task M9D - Presentation Sequence Closure
-
-Extend the M1 presenter:
-
-- complete launch engine-event to presentation-token mapping;
-- production actor/UI/VFX/audio binding contracts;
-- ordered playback across multi-effect cards, Ultimates, Tentacle volleys, status ticks, sequential enemies, and terminal transitions;
-- animation speed/skip controls;
-- reduced-motion substitution rules;
-- interruption/reload behaviour from committed authoritative state;
-- safe fallback presentation for missing optional assets;
-- no authoritative state mutation in presentation.
-
-## Task M9E - Pile Viewers and Event Log
-
-Implement:
-
-- draw viewer with hidden order;
-- discard viewer;
-- Graveyard viewer;
-- event log filters;
-- formula detail view;
-- keyboard/controller focus flow that does not disturb the active hand layout.
-
-## Task M9F - Accessibility and Responsive Behaviour
-
-Implement/validate:
-
-- keyboard/controller navigation;
-- accessible labels for interactive combat information;
-- reduced motion;
-- scalable card/tooltips;
-- colourblind-safe indicators;
-- 16:9, 16:10, ultrawide, and declared minimum-window layout checks;
-- pointer/touch-safe target sizes if touch is included in the release platform set;
-- drag is never required because click/keyboard paths remain equivalent.
-
-## Task M9G - Production Combat E2E
-
-Play Mode/built-player E2E:
-
-- click play;
-- drag below threshold -> cancel;
-- drag above threshold -> target-complete cast;
-- drag above threshold -> explicit-target state -> enemy select;
-- target/cast cancellation;
-- repeated drag/cancel/play stability;
-- keyboard play;
-- Ultimate;
-- pile inspect;
-- one, two, three, four-plus, and boss/add enemy formation readability;
-- enemy target non-overlap and unambiguous focus/selection;
-- reduced motion mode;
-- required aspect-ratio matrix.
-
-**M9 exit criteria:**
-
-- combat is production-usable by click, drag, and keyboard/controller where required;
-- card feel is stable across repeated use and declared resolutions/aspect ratios;
-- enemy targets remain readable and unambiguous;
-- the final layout still obeys the M1/M2 authoritative/presentation separation.
-
-# PHASE M10 - Art, Audio, VFX, and Presentation Closure
-
-## M10 Goal
-
-Close the production presentation catalogue, animation/VFX/audio breadth, technical budgets, and visual consistency without sacrificing readability or deterministic gameplay. **Generated art is allowed before and during M10 and may already be release-quality.** M10 does not require replacing generated art merely because it is generated; it reviews assets by quality, coherence, provenance/rights, technical suitability, and gameplay readability.
-
-DD-21, DD-26, and DD-29 directly govern character/enemy/map identity, target bounds, formation readability, and generated-art acceptance.
-
-## Task M10A - Presentation Asset Catalogue, Import Rules, and Budgets
-
-Finalize:
-
-- finalize the M0F logical presentation asset catalogue/manifest and validation for full release breadth;
-- Unity import presets/rules for character sprites, backgrounds, card art, icons, audio, and VFX textures;
-- loading states and missing-asset fallbacks;
-- texture/memory/build-size/performance budgets;
-- source/provenance, human-review, and release-readiness status;
-- generated-art provenance metadata without treating generation itself as a placeholder flag;
-- release scan proving every required production logical asset ID resolves.
-
-## Task M10B - Character and Enemy Assets
-
-Complete/review:
-
-- portrait assets framed for roster and detail views;
-- independent full-body combat actor assets with gameplay-scale silhouette requirements;
-- enemy actor assets with declared size class, stage footprint, readable target bounds, target marker anchors, HP/status/intent label anchors, and formation role support;
-- boss/add compositions that keep independently targetable enemies in readable satellite lanes;
-- concrete costume, surface/material, anatomy, Domain refraction, palette, and pose requirements from content briefs;
-- idle, act/attack, hit, defeat, and telegraph presentation coverage where applicable;
-- animation method chosen per asset: simple transform layers, Animator clips, frame animation, 2D Animation/SpriteSkin, or another approved technique; skeletal rigging is not mandatory when it adds cost without value;
-- visible horror reveal that survives gameplay scale;
-- content warning metadata;
-- source/provenance, human-review, and release-readiness status.
-
-## Task M10C - Card, Map, Shop, Symptom, Keepsake, and Environment Assets
-
-Complete/review:
-
-- card art and frame roles that remain legible behind rules text;
-- map nodes, connectors, landmarks, and backgrounds mapped from M7 semantic presentation tags;
-- Shop assets with inspectable item/space hierarchy;
-- Symptom and Curse art with a concrete visible change plus benefit/cost readability;
-- keepsake icons readable at inventory and combat-status sizes;
-- combat environments with separated decorative layers so actors/targets remain independent;
-- fallback assets for every required role;
-- source/provenance, review, and release-readiness status.
-
-## Task M10D - VFX and Audio
-
-Implement/finalize production bindings for M9 presentation tokens:
-
-- URP 2D/Shader Graph/Particle System effects as baseline, with VFX Graph only where useful and compatible;
-- Flesh VFX using readable graft, petal, blood, tissue-growth, or propagation cues;
-- Abyss VFX using readable pressure, tentacle, devotional ripple, lure-light, or depth cues;
-- Spirit VFX using readable Essence, foxfire, halo, chimera-cohesion, memory, or ritual cues;
-- Void VFX using readable threshold, seal, eclipse, debt, delay, or controlled-anomaly cues;
-- full-motion and reduced-motion variants for camera movement, actor displacement, particles, and transitions;
-- UI sound hooks;
-- combat sound hooks;
-- music/audio settings.
-
-## Task M10E - Readability, Loading, and Performance Validation
-
-DD-31 must be approved before performance acceptance is evaluated. Do not choose or assume a Windows hardware class, display resolution, frame-time target, memory budget, representative scenario, or tolerance here.
-
-Validate with Unity Profiler, Memory Profiler, Unity 6.5's 2D Profiler, and equivalent project instrumentation as appropriate. Use the 2D Profiler in particular to inspect sprite-rendering counts and sprite-atlas usage on representative combat scenes:
-
-- effects do not hide intents/cards/HP;
-- effects do not hide target rings, hitboxes, labels, or silhouettes for independently targetable enemies;
-- enemy formation remains readable for one, two, three, four-plus, and boss/add encounter layouts;
-- full and reduced-motion modes preserve ordered sequencing and attack tells;
-- reduced motion removes large movement, camera shake, long particle travel, and nonessential parallax without removing mechanical information;
-- horror cues remain visible at gameplay scale and do not depend only on subtle timing, reflection mismatch, animation, or prose;
-- Domain identity remains distinguishable without relying on colour alone;
-- the approved DD-31 Windows hardware, display, frame-time, memory, representative-scenario, and tolerance baseline;
-- asset loading/import/catalog failures cannot corrupt deterministic state;
-- generated and non-generated assets are judged by identical runtime quality/readability requirements.
-
-**M10 exit criteria:**
-
-- presentation pass does not reduce combat readability, targetability, accessibility, interaction stability, or deterministic behaviour;
-- every required production presentation role resolves to a reviewed asset or explicit approved fallback.
-
-# PHASE M11 - Balance, Reliability, and Release Gate
-
-## M11 Goal
-
-Validate the release candidate across determinism, schema discipline, saves, balance, accessibility, and performance.
-
-## Task M11A - Determinism and Architecture Audit
-
-Audit:
-
-- engine dependencies;
-- RNG streams;
-- replay checksums;
-- preview parity;
-- no UI-side rule duplication.
-
-## Task M11B - Hardcoding and Schema Audit
-
-Audit:
-
-- production content locations;
-- engine/UI special cases;
-- content registry coverage;
-- schema validation completeness;
-- non-production fixture leakage into release registries, profiles, saves, banners, Shops, inventories, snapshots, or asset manifests;
-- advanced character concepts cannot enter production registries or UI routes before their DD-22 follow-up contracts are implemented;
-- advanced card-memory/copy concepts cannot enter production registries or UI routes before their DD-23 follow-up contracts are implemented;
-- production art briefs contain concrete gameplay-scale requirements rather than unresolved abstract direction.
-
-## Task M11C - Save, Migration, and Corruption Audit
-
-Audit:
-
-- save roundtrip;
-- invalid content version handling;
-- failed write recovery;
-- active run compatibility;
-- M4 to M8, M8 to M8T, and M8T to M8X migration chains;
-- retired M3 fixture-save migration/invalidation behavior.
-
-## Task M11D - Seeded E2E Matrix
-
-Run matrix over:
-
-- starter party;
-- alternate parties;
-- multiple map seeds;
-- victory;
-- defeat;
-- abandon;
-- save/resume;
-- direct pull;
-- Trial rewards;
-- equipment loadout snapshot;
-- Profile Shop purchase;
-- gear reroll/desynthesis.
-
-## Task M11E - Domain-Aware Simulation and Tuning Reports
-
-Reports:
-
-- resource growth;
-- damage/shield per Mana;
-- route Obol economy;
-- direct pulls per hour/mode;
-- EXP/Sigil income;
-- Trial reward efficiency;
-- duplicate rate;
-- weapon duplicate rate;
-- gear stat distribution;
-- equipment upgrade and reroll cost curves;
-- Profile Shop affordability and conversion currency sinks;
-- Domain underuse.
-
-## Task M11F - Accessibility and Performance Audit
-
-Audit:
-
-- keyboard-only combat;
-- reduced motion;
-- colourblind-safe indicators;
-- text scaling;
-- Unity Player/URP/uGUI performance with representative combat and menu scenes;
-- Unity 6.5 2D Profiler sprite-rendering and sprite-atlas behaviour;
-- CPU/GPU frame timing and Canvas rebuild/batching hotspots where applicable;
-- memory usage and asset residency.
-- compliance with the approved DD-31 Windows performance acceptance baseline.
-
-## Task M11G - Release Candidate and Content Lock
-
-Lock:
-
-- content version;
-- schema version;
-- save version;
-- known issues;
-- release checklist.
-
-**M11 exit criteria:**
-
-- content lock candidate passes deterministic, schema, persistence, UI, accessibility, and performance gates.
+- The presentation pass reduces no readability, targetability, accessibility, interaction stability, or determinism; every required role resolves to a reviewed asset or approved fallback; the DD-31 baseline is met.
 
 ---
 
-## Appendix A - Global Risk Register
+### 27. M11 — Balance, Reliability, and Release Gate
+
+#### 27.1 Goal
+
+Validate the release candidate across determinism, schema discipline, saves, balance, accessibility, and performance, and lock content for release. M11 runs the project's standing audits, including the modularity audit (§6.6) and fixture-leak release scans (§4.5).
+
+#### 27.2 Entry criteria
+
+- M7, M8, M8T, M8X, M9, and M10 exit evidenced.
+- DD-14 (release platform lock) resolved before packaging; DD-08 (content intensity) resolved before content lock.
+
+#### 27.3 Work clusters
+
+- **M11-Determinism** — engine dependency, RNG stream, replay checksum, preview-parity, and no-UI-rule-duplication audit. Full task plan (release gate).
+- **M11-Hardcoding** — hardcoding/schema audit plus the **modularity audit** (§6.6): data-only "add a card" and "add an enemy" exercises, registry coverage, and zero production content IDs in engine/UI conditionals. Full task plan (release gate).
+- **M11-Saves** — save roundtrip, invalid-version handling, failed-write recovery, and the M4→M8→M8T→M8X migration chain; retired-fixture migration/invalidation behaviour. Full task plan (release gate).
+- **M11-E2E** — seeded matrix over starter/alternate parties, multiple seeds, victory/defeat/abandon, save/resume, pull, Trial, snapshot, Shop, reroll/desynth. Full task plan (release gate).
+- **M11-Sim** — Domain-aware simulation and tuning reports (§9.1 simulation hooks inform tuning; they do not replace human playtesting). Brief.
+- **M11-AccessPerf** — accessibility and performance audit against approved baselines. Brief.
+- **M11-Lock** — content/schema/save version lock, known issues, release checklist. Full task plan (release gate).
+
+#### 27.4 Exit
+
+- The content-lock candidate passes deterministic, schema, persistence, UI, accessibility, and performance gates; the modularity audit and fixture-leak scans are clean.
+
+## PART V — REGISTERS AND APPENDICES
+
+### 28. Design Decision Gate Table and Critical Path
+
+This section is the plan's view of the decision register. `plans/design-decisions.md` remains the audit trail; this table states what each decision gates in sequencing terms. A milestone may not begin work that a listed open decision gates.
+
+#### 28.1 Approved decisions (sequencing effect already consumed)
+
+| DD | Locked | Sequencing effect |
+|---|---|---|
+| DD-01 | Atomic Stop | M1 combat finalization |
+| DD-02 | Domain tuning | M2A schema lock |
+| DD-03 | Launch character kits | M2A / M5A content locks |
+| DD-04 | Save checkpoints | M4 resume UX |
+| DD-09 | Starter onboarding | M5H onboarding |
+| DD-13 | YAML/JSON format policy | all production authoring |
+| DD-21 | Bloom identity/refraction | release-quality content locks |
+| DD-22 | Advanced character mechanics | standing Tier 3 gate (§5); launch guardrails only |
+| DD-23 | Card memory/copy | standing Tier 3 gate (§5); launch guardrails only |
+| DD-24 | Collapsing Node lifecycle | M3 map work, M4 serialization |
+| DD-25 | Node-primary topology | M3/M4/M7 map work |
+| DD-26 | Enemy placement/readability | M6 metadata, M9 layout, M10 validation |
+| DD-27 | Unity architecture | M0/M1 |
+| DD-28 | Card hand/threshold interaction | M1H, M9 |
+| DD-29 | Generated art policy | all art milestones |
+| DD-30 | Save-facing JSON serializer | M0C/M0E persistence |
+
+#### 28.2 Open decisions (the critical path)
+
+| DD | Question (one line) | Blocks | Earliest dependent milestone |
+|---|---|---|---|
+| DD-05 | Exact rates, soft/hard pity, rounding | M8A lock | M8 |
+| DD-06 | First-acquisition protection | M8A lock | M8 |
+| DD-07 | C1–C5 and +1–+5 duplicate outcomes | M8A lock; M8X dupes | M8 |
+| DD-08 | Content warning taxonomy/intensity | M10/M11 content lock | M11 |
+| DD-10 | Reward quantities per mode/difficulty | production M6 quantities; M8/M8T/M8X rewards | M6 |
+| DD-11 | Profile-to-roster cap bands | M8A lock; M8X cap bands | M8 |
+| DD-12 | Trial difficulty/reward tables | M8T-A lock | M8T |
+| DD-14 | Release platform set | packaging | M11 |
+| DD-15 | SSR/SR/R rates, result families, 10-pull rules | M8A lock; M8X banners | M8 |
+| DD-16 | Stat keys, scalers, stacking, snapshot rules | M8X-A/B | M8X |
+| DD-17 | Weapon progression and +1–+5 bonuses | M8X-A/C | M8X |
+| DD-18 | Gear slots, stats, sets, reroll, desynthesis | M8X-A/D | M8X |
+| DD-19 | Profile Shop stock/prices/conversion rules | M8X-A/E | M8X |
+| DD-20 | Economy and item naming | M8X content/UI lock | M8X |
+| DD-31 | Windows performance baseline | M10E acceptance | M10 |
+
+#### 28.3 Critical paths
+
+- **Meta path:** DD-05/06/07/11/15 (+DD-10) → M8A → M8 → M8T → M8X → M11. This is the longest decision-bound chain in the project. The Lead Planner drafts these records with recommended baselines (the register already carries proposed baselines); the owner approves; mirrors land in `docs/DESIGN.md` before resolver work (§1).
+- **Content-quantity path:** DD-10 → production M6 reward quantities and all meta reward tables. M3/M4 and M8 development work proceed on fixtures until then (§4).
+- **Performance path:** DD-31 → M10E. Cheap to decide now; expensive to discover late. Recommended for early owner attention even though nothing before M10 needs it.
+- **Packaging path:** DD-14 → release builds. Windows-only is the viable default; the decision is required only before M11 packaging.
+- **Content-lock path:** DD-08 → M11 content lock.
+
+The plan sequences so that **no implementation waits on a decision that is not on its critical path**: M1–M5 and M7 are unblocked by open decisions except production reward quantities (DD-10), which fixtures cover.
+
+---
+
+### 29. Global Risk Register
+
+Revised from the prior register. Retained risks keep their mitigations, now cited to this plan's sections; new risks are the ones this project has already paid for or is structurally exposed to.
 
 | Risk | Consequence | Mitigation |
 |---|---|---|
-| Schema bypass or hardcoding | Content becomes brittle and untestable | Content registry, hardcoding audit, M0 validation gates |
-| RNG nondeterminism | Replays/saves diverge | Named streams in authoritative state, golden tests |
-| Save corruption | Player loses progress | save envelopes, validation, fallback snapshots |
-| Gacha trust failure | Ethical contract breaks | direct pulls, visible rates/pity, audit log |
-| Equipment economy creep | Permanent power overwhelms roguelike balance | M8X gates, equipment snapshots, simulations, Profile Shop sink tests |
-| Map softlock | Run cannot reach Boss | property tests, reachability validation |
-| UI preview mismatch | Player cannot trust decisions | preview/resolution parity tests |
-| Unity presentation/UI performance issues | Combat readability or input stability suffers | URP/uGUI budgets, profiling, pooled effects, reduced effects, layout tests |
-| Trial reward imbalance | Meta economy collapses | reward tables, simulations, first-clear/repeat distinction |
-| AI-assisted/generated content inconsistency | Tone/content quality drifts | provenance/readiness metadata, human review, schema validation; generation method alone is not a rejection criterion |
-| Non-production fixture leakage | Test characters or items enter player-facing state or release content | isolated fixture registries, explicit milestone retirement, release scans |
-| Production content precedes its schema or decisions | Content forces one-off engine/UI branches or unstable rewrites | schema/decision locks before M2, M6, M8, M8T, and M8X production authoring |
-| Speculative persisted state | Empty future payloads become accidental compatibility contracts | persist only live systems; add versioned migrations when M8/M8T/M8X systems ship |
-| Abstract art direction | Assets cannot communicate mechanics at gameplay scale | concrete 2D briefs, semantic presentation tags, readable tells, review status |
-| Advanced character retrofit pressure | Post-launch selfish-cost, Domain-transforming, or resource-amplifier kits require rewrites if launch systems are too rigid | DD-22 gate, source-kind event metadata, explicit status persistence scope, generic Domain operations, resource activity ledgers, and release scans for unapproved future content |
-| Unsafe card-copy semantics | Future copy kits bypass Transcend, leak hidden Draw order, or create recursive temporary cards | DD-23 gate, copy eligibility defaults, copy-lineage metadata, combat-scoped copy cleanup, hidden-zone information tests |
-| Card drag/canvas instability | Cards jump, drift, leave the screen, or submit unintended plays | one runtime UI system, deterministic fan layout, dedicated drag layer, explicit coordinate conversion, Play Area state machine, Play Mode aspect-ratio tests |
-| Unity scene/prefab rule leakage | Gameplay becomes coupled to GameObjects/Animator/prefab names and loses determinism | no-engine-reference core assembly, stable IDs, adapter-only Unity references, hardcoding audit |
-| Experimental CLI/Pipeline churn | Agent scripts break when Unity changes syntax | project-owned wrappers/commands, installed `--help` authoritative, gameplay independent of CLI/Pipeline |
+| Bureaucratic re-inflation (invented gates, manifests, workforces) | Work freezes behind phantom process, as in M1-D01 | §7.5 anti-bureaucracy clause; §7.4 fixed flow; stops raised as plan-level changes |
+| Feel/visibility debt (game unplayable until late) | Design errors discovered too late to correct cheaply | §8 weekly playable ratchet; §13.3 human gates; §12 feel pass |
+| Mechanism over-specification | Builder fights frozen mechanism instead of solving feel/integration | §7.2 task documents must not contain; plan owns invariants, Builder owns mechanism |
+| Skill context pollution | Agents ingest game rules in toolchain context; competing sources of truth | §0.2 skills are toolchain teaching only; sanitized skill files |
+| Tier 2 over-gating | Routine engine extensions stall content expansion | §5 three-tier policy; Extension Brief is bounded, not a DD |
+| Schema bypass or hardcoding | Content becomes brittle and untestable | §2.4, §6, §10 registry; M11 hardcoding/modularity audit |
+| RNG nondeterminism | Replays/saves diverge | §2.1 named streams; golden tests |
+| Save corruption | Player loses progress | §10 repositories; M11 save audit |
+| Gacha trust failure | Ethical contract breaks | §22 invariants; audit log; direct pulls |
+| Equipment economy creep | Permanent power overwhelms roguelike balance | §24 gates; snapshots; simulation |
+| Map softlock | Run cannot reach boss | §17/§21 validation and property tests |
+| UI preview mismatch | Player cannot trust decisions | §9.3 preview parity as engine defect |
+| Unity presentation/UI performance | Readability or input stability suffers | §26 M10-Perf against DD-31 |
+| Trial reward imbalance | Meta economy collapses | §23 declared tables; simulations |
+| AI-assisted/generated content inconsistency | Tone/quality drifts | §2.6 provenance vs readiness; human review |
+| Non-production fixture leakage | Test content enters player state or release | §4 policy; §31 retirement table; release scans |
+| Production content precedes schema/decisions | One-off branches and unstable rewrites | §3 readiness chain; §28 gates |
+| Speculative persisted state | Empty payloads become accidental contracts | §18.5; versioned migrations at M8/M8T/M8X |
+| Abstract art direction | Assets cannot communicate mechanics | §20/§26 concrete briefs and tags |
+| Advanced character retrofit pressure | Post-launch kits force rewrites | §5 Tier 3; DD-22 guardrails |
+| Unsafe card-copy semantics | Transcend bypass, hidden-order leaks, recursion | §5 Tier 3; DD-23 guardrails |
+| Card drag/canvas instability | Drift, off-screen cards, unintended plays | §12/§15 stability gates; drag system permanently flagged for acceptance (§7.5) |
+| Unity scene/prefab rule leakage | Gameplay coupled to GameObjects/Animator names | §2.2 engine purity; §10 boundaries; M11 audit |
+| Experimental CLI/Pipeline churn | Agent scripts break on syntax change | §9.4 wrappers; `--help` authoritative; §10.4 |
 
 ---
 
-## Appendix B - Delegation and Parallel Work
+### 30. Task Document Templates
 
-- Work may be parallelized only after shared schemas/interfaces are stable.
-- Content production can parallelize after content schemas and registry validation exist.
-- Unity presentation work can parallelize after the relevant command/event/actor contracts exist; it may not invent gameplay rules.
-- Trials can parallelize after profile inventory, reward grants, and encounter schemas exist.
-- Generated art/reference production may occur at any time. Runtime binding as production content waits only for the relevant logical asset-reference schema/catalog contract and human review; it does not need to wait for M10.
-- Audio/VFX breadth may parallelize after presentation-token/asset contracts exist, with M10 owning final closure and budgets.
-- No subtask may introduce production gameplay content outside schema-validated data.
-- Parallel Unity scene/prefab work must respect stable actor/presenter interfaces and may not branch on production IDs.
+Three templates exist. §7.1 states when each is used; nothing else is permitted. A task document that does not match one of these shapes is not a task document and carries no authority.
 
----
+#### 30.1 Full task plan (gates, schema locks, save-affecting, DD-gated, cross-layer)
 
-## Appendix C - Required Task-Plan Index
+```
+# Task <ID> — <Title>
+## Objective and player-visible outcome
+## Authority references          — DESIGN.md sections, DDs, plan sections
+## In scope / Non-goals
+## Entry criteria                — content readiness stages (§3) and prior gates
+## Public contract / schema / save changes
+## Invariants carried            — from §1.3 and milestone invariants
+## Acceptance behaviour          — observable, ordinary-runtime where player-facing
+## Required tests and gate kind  — deterministic / runtime / human (§13.3)
+## Validation commands           — Tools/*.ps1 and bloom.* names
+## Stop conditions
+## Exit criteria
+## Worklog requirements
+```
 
-Required task-plan files should eventually exist under `plans/tasks/` or an equivalent directory:
+#### 30.2 One-page brief (all other intra-milestone work)
 
-- M0A through M0F
-- M1A through M1J
-- M2A through M2I
-- M3A through M3H
-- M4A through M4F
-- M5A through M5H
-- M6A through M6G
-- M7A through M7D
-- M8A through M8I
-- M8T-A through M8T-F
-- M8X-A through M8X-G
-- M9A through M9G
-- M10A through M10E
-- M11A through M11G
-
-No whole milestone should be handed to an implementation agent as one vague prompt once task-level work begins.
-
----
-
-## Appendix D - Task Plan Template
-
-```markdown
-# Task <ID> - <Title>
-
+```
+# Brief <ID> — <Title>
 ## Objective
+## In scope / Non-goals
+## Authority references
+## Acceptance behaviour
+## Stop conditions
+```
 
-## In Scope
+Briefs deliberately omit mechanism, helper design, API shape, and tooling internals. A brief that freezes mechanism has exceeded its authority and is revised, not executed.
 
-## Non-Goals
+#### 30.3 Extension Brief (Tier 2 engine extensions, §5.3)
 
-## Source Documents To Inspect
-
-## Public Contract Changes
-
-## Schema or Content Changes
-
-## Implementation Steps
-
-## Required Tests
-
-## Validation Commands
-
-## Exit Criteria
-
-## Worklog Entry Requirements
+```
+# Extension Brief <ID> — <Operation Name>
+## Operation identity        — kind, payload schema, operation family
+## Generality statement      — which content uses it; not a character-ID branch
+## RNG stream assignment     — named substream touched, or none
+## Timing / ordering window  — position in stable resolution order
+## Preview parity            — same evaluator as resolution
+## Save & content-version    — save-affecting or content-version only
+   impact
+## Deterministic test plan   — golden/property coverage
+## Replay compatibility      — existing replays unaffected, or migrated
 ```
 
 ---
 
-## Appendix E - Pre-Implementation Approval Checklist
+### 31. Fixture Lifecycle and Retirement Table
 
-Before coding beyond M0 foundation work:
+Every fixture family has a declared birth, consumption window, and retirement. This table is the standing contract; individual cutovers (§16.3 M2-Cutover, §20.3 M6-Cutover) execute it.
 
-- `docs/DESIGN.md` is current.
-- `plans/implementation_plan.md` is approved.
-- Content schema policy is approved or explicitly provisional.
-- Unity 6.5 Supported-line project/version policy, Windows development baseline, and DD-14 release-platform gate are recorded; the exact `6000.5.x` patch is pinned in `ProjectSettings/ProjectVersion.txt`.
-- Direct pulls have no intermediary conversion resource.
-- Production content hardcoding is forbidden and reviewable.
-- M0 validation commands exist.
-- `Bloomdrawn.Engine` No Engine References boundary is enforced.
-- M1 owns the independent actor model, bottom-centred fan, Play Area threshold interaction, and initial presentation adapter.
-- Generated art is permitted and readiness is tracked independently from generation method.
-- Unity CLI/Pipeline is treated as experimental development tooling and cannot be required by gameplay/runtime architecture.
-- Open design gates are tracked and block their dependent milestones.
+| Fixture family | Introduced | Consumed | Retired | Retirement mechanism |
+|---|---|---|---|---|
+| M1 fixture party and cards | M1-Setup | M1 | M2-Cutover | Removed from runtime bundles and developer registries; minimal isolated test equivalents retained; release scan proves normal startup cannot load them |
+| M3 run content (reward table, Shop offer, keepsake, Symptom, boss reference) | M3-RunContent | M3, M4 | M6-Cutover | Production run content replaces; fixture-bearing development saves migrated or invalidated; release scan |
+| Equipment fixtures (weapons/gear) | M8X tests | M8X | Never enter production | Isolated validated injection only; production catalogs, banners, Shops, inventories, and snapshots reject fixture IDs |
+| Golden/combat regression fixtures | M0/M1 | Ongoing | Never (regression value) | Retained under isolated test sources; regenerated only when canonical traces change, without weakening assertions |
 
----
+Standing rules (full policy in §4):
 
-## Appendix F - Unity Documentation Baseline
-
-Task authors and agents must verify Unity/package behaviour against current official documentation when it affects implementation. Useful baseline references:
-
-- Unity 6 releases/support and Update-release guidance: https://unity.com/releases/unity-6/support
-- Unity 6.5 current 6000.5.x patches: https://unity.com/releases/editor/archive
-- Unity 6.5 base release notes and 2D feature additions: https://unity.com/releases/editor/whats-new/6000.5.0f1
-- Unity CLI: https://docs.unity.com/en-us/unity-cli/
-- Unity CLI reference (`--help` is authoritative): https://docs.unity.com/en-us/unity-cli/unity-cli-reference
-- Unity Pipeline package setup and Editor connection: https://docs.unity.com/en-us/unity-production-pipeline/local-tools-cli/unity-pipeline-package
-- Unity CLI/Pipeline/`[CliCommand]`/live Editor evaluation overview: https://unity.com/blog/meet-the-unity-cli
-- Unity Test Framework: https://docs.unity3d.com/Manual/com.unity.test-framework.html
-- Unity C# compiler/language support: https://docs.unity3d.com/Manual/csharp-compiler.html
-- Assembly Definition properties / No Engine References: https://docs.unity3d.com/Manual/class-AssemblyDefinitionImporter.html
-- Unity UI system comparison: https://docs.unity3d.com/Manual/UI-system-compare.html
-- RectTransform coordinate utilities: https://docs.unity3d.com/ScriptReference/RectTransformUtility.html
-- uGUI Canvas scaling: https://docs.unity3d.com/ScriptReference/UI.CanvasScaler.html
-- Input System: https://docs.unity3d.com/Manual/com.unity.inputsystem.html
-- Persistent data path: https://docs.unity3d.com/ScriptReference/Application-persistentDataPath.html
-- URP 2D documentation: https://docs.unity3d.com/Manual/urp/2d-index.html
-
-Rules:
-
-- Experimental CLI/Pipeline syntax is not frozen by this plan. Use installed help/discovery and update project wrappers when syntax changes.
-- Package/API decisions in task plans should note the documentation page/version actually checked when behaviour is version-sensitive.
-- Third-party packages are not architectural defaults. Add one only when a task demonstrates a concrete need and records the dependency/maintenance cost.
+- Fixtures carry an explicit non-production namespace and marker, and load only from isolated sources.
+- Engine, UI, persistence, and presentation code never branch on fixture IDs.
+- Production profiles, saves, banners, Shops, inventories, snapshots, and release registries reject fixture IDs; validators and release scans enforce this.
+- A fixture that has outlived its table row is a plan-level defect, not a silent survivor.
 
 ---
+
+*End of document. This plan supersedes its predecessor in full. It takes effect on owner approval; Task 0 (§11) is its first executable act, and the DD critical path (§28.3) is its first planning act.*
