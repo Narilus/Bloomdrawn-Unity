@@ -95,8 +95,11 @@ namespace Bloomdrawn.Presentation
                     continue;
                 }
 
-                cardObject.transform.SetParent(handContainer, false);
-                cardObject.SetRestingPose(poses[i]);
+                 // Keep the current world pose while changing layers. The card view then
+                 // eases from that pose to the newly calculated authoritative fan pose
+                 // instead of jumping through the hand parent's origin.
+                 cardObject.transform.SetParent(handContainer, true);
+                 cardObject.SetRestingPose(poses[i]);
                 if (interactionState == CardInteractionState.Hovered && bootstrap.ActiveInteractionCardId == instance.Id)
                     cardObject.SetHovered(true);
             }

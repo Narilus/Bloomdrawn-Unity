@@ -12,11 +12,34 @@ namespace Bloomdrawn.Presentation
     }
     public static class HandFanLayout
     {
+        public const float DefaultCardWidth = 180f;
+
         public static IReadOnlyList<HandFanPose> Calculate(int count, float width, float spacing = 130f, float arcHeight = 32f, float maxAngle = 14f)
         {
-            if (count < 0) throw new ArgumentOutOfRangeException(nameof(count)); if (count == 0) return Array.Empty<HandFanPose>();
-            var poses = new List<HandFanPose>(); var center = (count - 1) * .5f;
-            for (var index = 0; index < count; index++) { var normalized = center == 0 ? 0 : (index - center) / center; poses.Add(new HandFanPose(new Vector2(width * .5f + (index - center) * spacing, arcHeight * normalized * normalized), -maxAngle * normalized, index)); }
+            if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+            if (count == 0) return Array.Empty<HandFanPose>();
+
+            // Keep the fan centred while contracting the overlap as the hand grows.  The
+            // hand container is presentation input, so this calculation deliberately does
+            // not depend on any temporary card transform or pointer position.
+            var safeWidth = Mathf.Max(0f, width);
+            var centre = (count - 1) * .5f;
+            var availableSpacing = count == 1
+                ? 0f
+                : Mathf.Max(0f, (safeWidth - DefaultCardWidth) / (count - 1));
+            var effectiveSpacing = count == 1
+                ? 0f
+                : Mathf.Min(Mathf.Max(0f, spacing), availableSpacing);
+            var poses = new List<HandFanPose>(count);
+            for (var index = 0; index < count; index++)
+            {
+                var normalized = centre == 0 ? 0 : (index - centre) / centre;
+                poses.Add(new HandFanPose(
+                    new Vector2(safeWidth * .5f + (index - centre) * effectiveSpacing, arcHeight * normalized * normalized),
+                    -maxAngle * normalized,
+                    index));
+            }
+
             return poses;
         }
     }

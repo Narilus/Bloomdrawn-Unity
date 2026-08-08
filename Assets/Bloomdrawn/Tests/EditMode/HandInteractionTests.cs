@@ -13,6 +13,21 @@ namespace Bloomdrawn.Tests.EditMode
             var first=HandFanLayout.Calculate(5,1920); var second=HandFanLayout.Calculate(5,1920);
             Assert.That(first.Select(p=>p.Position.x),Is.EqualTo(second.Select(p=>p.Position.x))); Assert.That(first[2].Position.x,Is.EqualTo(960)); Assert.That(first.Select(p=>p.Depth),Is.EqualTo(new[]{0,1,2,3,4}));
         }
+
+        [Test]
+        public void LargerHandsContractWithinTheDeclaredContainerInsteadOfLosingOuterCards()
+        {
+            var poses = HandFanLayout.Calculate(10, 1040f, 188f, 22f, 8f);
+            var minimumCentre = HandFanLayout.DefaultCardWidth * .5f;
+            var maximumCentre = 1040f - minimumCentre;
+
+            Assert.That(poses, Has.Count.EqualTo(10));
+            Assert.That(poses.Select(p => p.Position.x), Is.Ordered);
+            Assert.That(poses.Min(p => p.Position.x), Is.GreaterThanOrEqualTo(minimumCentre - 1f));
+            Assert.That(poses.Max(p => p.Position.x), Is.LessThanOrEqualTo(maximumCentre + 1f));
+            Assert.That((poses[4].Position.x + poses[5].Position.x) * .5f, Is.EqualTo(520f).Within(.001f));
+        }
+
         [Test]
         public void DragThresholdCancelAndTargetStagingNeverSubmitPartialCommand()
         {

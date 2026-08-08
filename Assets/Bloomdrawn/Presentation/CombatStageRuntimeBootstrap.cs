@@ -96,12 +96,18 @@ namespace Bloomdrawn.Presentation
         public void BeginCardDrag(CombatCardView card, PointerEventData eventData)
         {
             if (!CanAcceptPlayerInput() || card == null || (interaction.State != CardInteractionState.Resting && interaction.State != CardInteractionState.Hovered)) return;
+            var wasFocused = card.IsHovered;
+            var dragWorldScale = card.DragWorldScale;
             card.SetHovered(false);
             var cardScreenPosition = RectTransformUtility.WorldToScreenPoint(eventData.pressEventCamera, card.RectTransform.position);
-            dragPointerOffset = cardScreenPosition - eventData.pressPosition;
+            // A focused card is intentionally lifted under the pointer. Starting a drag
+            // from that focus state should not make the first pointer movement carry the
+            // hover lift as a hidden offset; edge grabs still preserve their real offset.
+            dragPointerOffset = wasFocused ? Vector2.zero : cardScreenPosition - eventData.pressPosition;
             interaction.BeginDrag(card.CardId, card.OwnerId, card.RequiresEnemyTarget);
             dragLayer.ReparentPreservingScreenPosition(card.RectTransform, eventData.position, eventData.pressEventCamera);
             card.SetDragging(true);
+            card.PreserveWorldScale(dragWorldScale);
             card.SetArmed(false);
         }
 
@@ -109,7 +115,10 @@ namespace Bloomdrawn.Presentation
         {
             if (card == null || interaction.ActiveCardId != card.CardId || (interaction.State != CardInteractionState.DraggingArmed && interaction.State != CardInteractionState.DraggingDisarmed)) return;
             dragLayer.MoveToScreenPoint(card.RectTransform, eventData.position + dragPointerOffset, eventData.pressEventCamera);
-            var armed = dragLayer.IsAbovePlayArea(eventData.position, eventData.pressEventCamera);
+            var armed = dragLayer.IsAbovePlayArea(
+                eventData.position,
+                eventData.pressEventCamera,
+                interaction.State == CardInteractionState.DraggingArmed);
             interaction.UpdateArmed(armed);
             card.SetArmed(armed);
         }
@@ -125,9 +134,16 @@ namespace Bloomdrawn.Presentation
         public void ClickCard(CombatCardView card)
         {
             if (!CanAcceptPlayerInput() || card == null || (interaction.State != CardInteractionState.Resting && interaction.State != CardInteractionState.Hovered)) return;
+            var clickWorldScale = card.DragWorldScale;
+            card.SetHovered(false);
             interaction.BeginDrag(card.CardId, card.OwnerId, card.RequiresEnemyTarget);
             interaction.UpdateArmed(true);
-            if (card.RequiresEnemyTarget) dragLayer.ReparentPreservingScreenPosition(card.RectTransform, RectTransformUtility.WorldToScreenPoint(null, card.RectTransform.position), null);
+            if (card.RequiresEnemyTarget)
+            {
+                dragLayer.ReparentPreservingScreenPosition(card.RectTransform, RectTransformUtility.WorldToScreenPoint(null, card.RectTransform.position), null);
+                card.SetDragging(true);
+                card.PreserveWorldScale(clickWorldScale);
+            }
             interaction.Release();
             Refresh();
         }
@@ -213,6 +229,8 @@ namespace Bloomdrawn.Presentation
         private void Refresh()
         {
             if (flow != null && hud != null) hud.Refresh(flow.CurrentState, interaction == null ? CardInteractionState.Resting : interaction.State, rejection);
+            if (interaction != null && interaction.State == CardInteractionState.TargetSelection && hud != null && dragLayer != null && hud.TryGetCard(interaction.ActiveCardId, out var stagedCard))
+                dragLayer.StageCard(stagedCard, null);
         }
 
         private void LoadDisplayNames(string artifactJson)
