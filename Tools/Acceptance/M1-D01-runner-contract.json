@@ -1,7 +1,9 @@
 {
   "schemaVersion": 2,
   "taskId": "M1-D01",
-  "branch": "fix/m1-dd28-runtime-drag",
+  "gateId": "M1",
+  "purpose": "M1 Milestone Gate Harness",
+  "scope": "milestone-exit-only",
   "unityVersion": "6000.5.5f1",
   "scene": "Assets/Scenes/CombatStage.unity",
   "entrypoint": "ordinary Play Mode automatic CombatStageRuntimeBootstrap",
@@ -136,46 +138,6 @@
     "atomicReplaceWithExplicitRollback": true,
     "restoreAfterProvenShutdown": true
   },
-  "preservedDirtyPaths": [
-    { "path": "agent-tasks/M1-D01-dd28-runtime-drag.md", "sha256": "751B304EA2E812448ACF35642FF5F010E4ED86F6E846BB7F22B031D15C3C0FF1" },
-    { "path": "acceptance/manifests/M1-D01-dd28-runtime-drag.yaml", "sha256": "65BC9F6137DE0A2A2367CC522CFA41BCB4C4142DF7C8D30F6A1DB96EB13B156F" },
-    { "path": "Assets/Bloomdrawn/Presentation/CardDragLayer.cs", "sha256": "895E5C546ECBCA473D4549F2227C6A010652E9157C70297D057BAAFA5990CEA1" },
-    { "path": "Assets/Bloomdrawn/Presentation/CombatCardView.cs", "sha256": "88B9C86355A2820276BF6BC11EBEF14EBE3A202DA7539CFBE448FD9C2F0CE5DD" },
-    { "path": "Assets/Bloomdrawn/Presentation/CombatHudView.cs", "sha256": "EE132DFCDFDDD08EE5483E0DFE84047B5B5ED1BE5C2955262EB73EF38BCA2681" },
-    { "path": "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs", "sha256": "9E0C663D2FAD01E24571A515EEBF13D56BDA6DD75A6EC0BDDA5834CC12B31E38" },
-    { "path": "Assets/Bloomdrawn/Presentation/HandInteraction.cs", "sha256": "85F2C5620BF73E508AAAF64C9BEDA437B1AD472752D83677F8F2AB2B5EBA2A10" },
-    { "path": "Bloomdrawn-Unity.slnx", "sha256": "045AD0C2BEAE7D3B93CC4DEDECEC765BB340583999D0C4EA53A7F769BE8AA5B4" }
-  ],
-  "authorizedAcceptancePaths": [
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
-    "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
-    "Tools/Acceptance/M1-D01-runner-contract.json",
-    "acceptance/locks/M1-D01-protected.sha256.json"
-  ],
-  "allowedDirtyPaths": [
-    "agent-tasks/M1-D01-dd28-runtime-drag.md",
-    "acceptance/manifests/M1-D01-dd28-runtime-drag.yaml",
-    "Assets/Bloomdrawn/Presentation/CardDragLayer.cs",
-    "Assets/Bloomdrawn/Presentation/CombatCardView.cs",
-    "Assets/Bloomdrawn/Presentation/CombatHudView.cs",
-    "Assets/Bloomdrawn/Presentation/CombatStageRuntimeBootstrap.cs",
-    "Assets/Bloomdrawn/Presentation/HandInteraction.cs",
-    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs",
-    "Assets/Bloomdrawn/Tests/PlayMode/M1D01RuntimeDragRegressionPlayModeTests.cs.meta",
-    "Bloomdrawn-Unity.slnx",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
-    "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
-    "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
-    "Tools/Acceptance/M1-D01-runner-contract.json",
-    "acceptance/locks/M1-D01-protected.sha256.json"
-  ],
   "evidenceRoot": "Logs/M1-D01/Acceptance",
   "classificationExitCodes": {
     "PASS": 0,

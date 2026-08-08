@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "gateId": "M1",
+  "legacyHarnessId": "M1-D01",
+  "algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance.meta",
+      "sha256": "09B176515A377956C00A8BD8C236D8C671B061C59AF965B4DEA0B42353426A9A"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Bloomdrawn.Tests.PlayMode.asmref",
+      "sha256": "432345BD3D5C9A3E9FB883D89F49FF162027A114630418DA3CCBF86EE0951F22"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Bloomdrawn.Tests.PlayMode.asmref.meta",
+      "sha256": "01E79994B7B504A3910D64830DE6518A5D0C6F2C38FBF0BEDFC72A59A20E2528"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs",
+      "sha256": "CC63341DE0D7C261E0E2E5A794E7F2AE6D6C8169526CA701118F2A9E66880DE5"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/M1D01RuntimeDragAcceptanceTests.cs.meta",
+      "sha256": "81626C852110FD1A473DC536426A2A35437213237ED7FB549E188B2572864782"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure.meta",
+      "sha256": "7ABF4130F89804709F0E43BC1A97655F8B98B362AD03AFBDC70D70E2A1FCB149"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef",
+      "sha256": "44EB0EF9B34BA46A67CCAEE1D8B11EB269BCE8EFA3CD6934F66DF1E97E1CCDB8"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/Bloomdrawn.M1D01.AcceptanceInfrastructure.asmdef.meta",
+      "sha256": "13AFD83C3CE64C591298BAC1C263023246E486D480D8E33BB081DF52DE78AA81"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs",
+      "sha256": "44A711C06F46C9FC6F72E7A903B717CEA155614B272D308835904414D1EE6704"
+    },
+    {
+      "path": "Assets/Bloomdrawn/Tests/Acceptance/Infrastructure/M1D01AcceptanceTestBridge.cs.meta",
+      "sha256": "1616CA50B41CC2F2C00B5B661CC10420E84AF2F684D5FBB73DD0707FEC3DA37F"
+    },
+    {
+      "path": "Tools/Acceptance/Invoke-M1D01Acceptance.ps1",
+      "sha256": "20F55A17A511FFDE0E4F7F66BBF21914E65F8CD70E3F0996CC30F25ABD270012"
+    },
+    {
+      "path": "Tools/Acceptance/M1-D01-runner-contract.json",
+      "sha256": "6EE0D5BD84E98156DE5D7F327169368C852F0DB314AE08549ECC70DFFC303615"
+    },
+    {
+      "path": "Tools/Acceptance/M1-gate-expected-values.json",
+      "sha256": "53E93AF534700653A01B79963C430F3EE3DC9C568B63C843029A54767AEC10E9"
+    }
+  ]
+}

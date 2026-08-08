@@ -20,7 +20,7 @@ using Object = UnityEngine.Object;
 namespace Bloomdrawn.Tests.PlayMode.Acceptance
 {
     /// <summary>
-    /// Protected M1-D01 gate. It enters the committed ordinary scene and drives only public
+    /// Protected M1 Milestone Gate harness (retained from M1-D01). It enters the committed ordinary scene and drives only public
     /// Input System devices through the scene's real EventSystem. Product interaction methods
     /// are intentionally observed through public state and never invoked by this harness.
     /// </summary>

@@ -1,6 +1,8 @@
 {
   "schemaVersion": 1,
+  "gateId": "M1",
   "taskId": "M1-D01",
+  "purpose": "M1 Milestone Gate protected behavior and evidence expectations",
   "criteria": [
     "ordinary-bootstrap",
     "pointer-reaches-runtime-card",

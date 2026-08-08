@@ -30,8 +30,8 @@ class M1D01AcceptanceFailure : System.Exception {
 
 $project = [System.IO.Path]::GetFullPath($ProjectPath).TrimEnd('\', '/')
 $contractPath = Join-Path $project 'Tools\Acceptance\M1-D01-runner-contract.json'
-$expectedPath = Join-Path $project 'Tools\Acceptance\M1-D01-expected-values.json'
-$lockPath = Join-Path $project 'acceptance\locks\M1-D01-protected.sha256.json'
+$expectedPath = Join-Path $project 'Tools\Acceptance\M1-gate-expected-values.json'
+$lockPath = Join-Path $project 'acceptance\locks\M1-gate-protected.sha256.json'
 $acceptanceRoot = Join-Path $project 'Logs\M1-D01\Acceptance'
 $runsRoot = Join-Path $acceptanceRoot 'runs'
 $runId = [guid]::NewGuid().ToString('N')
@@ -239,15 +239,6 @@ function Get-ProtectedHashes {
     return $values
 }
 
-function Assert-PreservedHashes {
-    foreach ($entry in @($script:contract.preservedDirtyPaths)) {
-        $full = Join-Path $project ([string]$entry.path).Replace('/', '\')
-        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' "Preserved dirty file is missing: $($entry.path)" 20 }
-        $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $full).Hash
-        if ($actual -ne ([string]$entry.sha256).ToUpperInvariant()) { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' "Preserved dirty hash mismatch: $($entry.path)" 20 }
-    }
-}
-
 function Get-PrunableFinalizedEditorLog {
     param([System.IO.FileInfo]$EditorLog)
     $runRoot = $EditorLog.Directory
@@ -315,11 +306,7 @@ function Invoke-EditorLogRetention {
 
 function Assert-AllowedDirtySnapshot {
     param([object[]]$Snapshot)
-    $allowed = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    foreach ($path in @($script:contract.allowedDirtyPaths)) { [void]$allowed.Add([string]$path) }
-    foreach ($entry in @($Snapshot)) {
-        if (-not $allowed.Contains([string]$entry.path)) { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' "Unexpected dirty path: $($entry.path)" 20 }
-    }
+    if (@($Snapshot).Count -ne 0) { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' 'The M1 Milestone Gate requires a clean working tree.' 20 }
 }
 
 function Compare-Snapshots {
@@ -828,7 +815,6 @@ function Complete-IntegrityEvidence {
     if ($null -ne $script:initialHead -and (& git -C $project rev-parse HEAD).Trim() -ne $script:initialHead) { $failure = 'Repository HEAD changed during acceptance.' }
     elseif (@($postProtected | Where-Object { -not $_.matches }).Count -ne 0) { $failure = 'Protected hashes changed during acceptance.' }
     elseif ($null -ne $script:preSnapshot) { $failure = Compare-Snapshots $script:preSnapshot $post }
-    try { Assert-PreservedHashes } catch { if ($null -eq $failure) { $failure = $_.Exception.Message } }
     return $failure
 }
 
@@ -881,15 +867,11 @@ try {
 
     $script:initialHead = (& git -C $project rev-parse HEAD).Trim()
     $branch = (& git -C $project branch --show-current).Trim()
-    $upstream = (& git -C $project rev-parse --abbrev-ref --symbolic-full-name '@{upstream}').Trim()
-    $divergence = (& git -C $project rev-list --left-right --count 'HEAD...@{upstream}').Trim()
-    if ($branch -ne [string]$script:contract.branch -or $upstream -ne "origin/$($script:contract.branch)" -or $divergence -ne "0`t0") { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' "Git branch/upstream mismatch: branch=$branch upstream=$upstream divergence=$divergence" 20 }
     if (@(& git -C $project diff --cached --name-only).Count -ne 0) { Throw-RunFailure 'ENVIRONMENTAL_BLOCKAGE' 'Git index is not empty.' 20 }
     (& git -C $project status --porcelain=v2 --branch --untracked-files=all) | Set-Content -LiteralPath (Join-Path $runDirectory 'git-before.txt') -Encoding utf8
     $script:preSnapshot = Get-WorkingTreeSnapshot
     Write-Json $script:preSnapshot (Join-Path $runDirectory 'working-tree-before.json')
     Assert-AllowedDirtySnapshot $script:preSnapshot
-    Assert-PreservedHashes
     Write-AtomicJson ([ordered]@{ schemaVersion=1; taskId='M1-D01'; runId=$runId; testedHead=$script:initialHead; branch=$branch; rootPath=[IO.Path]::GetFullPath($runDirectory); creationUtc=[DateTime]::UtcNow.ToString('o'); pidState='unassigned'; exactEditorPid=0; projectPath=$project; unityVersion=[string]$script:contract.unityVersion; automated=$false; commandLineHash=$null; taskLocalLogPath=$editorLog }) (Join-Path $runDirectory 'run-ownership.json')
     Capture-SolutionPreRun
     Check-SolutionWatcher
